@@ -2,6 +2,7 @@
 #include <math.h>
 
 #include <ew/external/glad.h>
+//#include <ew/externalshader.h>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -18,9 +19,59 @@ int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
 
+// Cache
+#include <ew/shader.h>
+
+#include <ew/model.h>
+
+#include <ew/camera.h>
+#include <ew/cameraController.h>
+ew::Camera camera;
+
+#include <ew/transform.h>
+ew::Transform suzanneTransform;
+
+#include <ew/texture.h>
+
+void qwerty(ew::Shader shader, ew::Model model, GLuint texture, float deltaTime)
+{
+	// 1. pipeline defenition
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK); // Backface culling
+	glEnable(GL_DEPTH_TEST); // Depth testing
+
+	// 2. gfx pass, a pass is what is going onto the screen
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	shader.use();
+	shader.setMat4("transform_model", glm::mat4(1.0f));
+	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
+	shader.setInt("_Maintex", 0);
+	model.draw();
+
+	suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
+
+	shader.setMat4("_Model", suzanneTransform.modelMatrix());
+}
+
 int main() {
 	GLFWwindow* window = initWindow("Assignment 0", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+
+	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Model suzanne = ew::Model("assets/suzanne.obj");
+
+	// Initalize camera
+	camera.position = glm::vec3( 0.0f, 0.0f, 5.0f);
+	camera.target = glm::vec3( 0.0f, 0.0f, 0.0f );
+	camera.aspectRatio = (float)screenWidth / screenHeight;
+	camera.fov = 60.0f;
+
+	GLuint brickTexture = ew::loadTexture("assets/brick_color.jpg");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -32,6 +83,9 @@ int main() {
 		//RENDER
 		glClearColor(0.6f,0.8f,0.92f,1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// This is our main render
+		qwerty(lit_shader, suzanne, brickTexture, deltaTime);
 
 		drawUI();
 
@@ -81,6 +135,7 @@ GLFWwindow* initWindow(const char* title, int width, int height) {
 	}
 	glfwMakeContextCurrent(window);
 
+	// The proc address is where the the calls are located in the specific gpu
 	if (!gladLoadGL(glfwGetProcAddress)) {
 		printf("GLAD Failed to load GL headers");
 		return nullptr;
