@@ -27,13 +27,34 @@ float deltaTime;
 #include <ew/camera.h>
 #include <ew/cameraController.h>
 ew::Camera camera;
+ew::CameraController camControl;
 
 #include <ew/transform.h>
 ew::Transform suzanneTransform;
 
 #include <ew/texture.h>
 
-void qwerty(ew::Shader shader, ew::Model model, GLuint texture, float deltaTime)
+struct Material
+{
+	// Ambient coefficent 0-1
+	float aCoff = 1.0;
+	// Diffuse coefficent 0-1
+	float dCoff = 0.5;
+	// Specular coefficent 0-1
+	float sCoff = 0.5;
+	// Size of specular highlight
+	float shine = 125;
+} material;
+
+void resetCam(ew::Camera* camera, ew::CameraController* camControl)
+{
+	camera->position = glm::vec3(0, 0, 5.0f);
+	camera->target = glm::vec3(0);
+	camControl->yaw = camControl->pitch = 0;
+}
+
+// render loop
+void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLFWwindow* window, float deltaTime)
 {
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
@@ -50,12 +71,20 @@ void qwerty(ew::Shader shader, ew::Model model, GLuint texture, float deltaTime)
 	shader.use();
 	shader.setMat4("transform_model", glm::mat4(1.0f));
 	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
+	shader.setVec3("eyePosition", camera.position);
+	shader.setFloat("material.aCoff", material.aCoff);
+	shader.setFloat("material.dCoff", material.dCoff);
+	shader.setFloat("material.sCoff", material.sCoff);
+	shader.setFloat("material.shine", material.shine);
 	shader.setInt("_Maintex", 0);
-	model.draw();
 
 	suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
-	shader.setMat4("_Model", suzanneTransform.modelMatrix());
+	shader.setMat4("transform_model", suzanneTransform.modelMatrix());
+
+	camControl.move(window, &camera, deltaTime);
+
+	model.draw();
 }
 
 int main() {
@@ -85,7 +114,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// This is our main render
-		qwerty(lit_shader, suzanne, brickTexture, deltaTime);
+		qwerty(lit_shader, suzanne, brickTexture, window, deltaTime);
 
 		drawUI();
 
@@ -100,7 +129,19 @@ void drawUI() {
 	ImGui::NewFrame();
 
 	ImGui::Begin("Settings");
-	ImGui::Text("Add Controls Here!");
+
+	if (ImGui::Button("Reset Camera"))
+	{
+		resetCam(&camera, &camControl);
+	}
+
+	if (ImGui::CollapsingHeader("Material")) {
+		ImGui::SliderFloat("Ambient", &material.aCoff, 0.0f, 1.0f);
+		ImGui::SliderFloat("Diffuse", &material.dCoff, 0.0f, 1.0f);
+		ImGui::SliderFloat("Specular", &material.sCoff, 0.0f, 1.0f);
+		ImGui::SliderFloat("Shine", &material.shine, 2.0f, 1024.0f);
+	}
+
 	ImGui::End();
 
 	ImGui::Render();
