@@ -92,7 +92,7 @@ int main() {
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
-	ew::Model suzanne = ew::Model("assets/suzanne.obj");
+	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
 	camera.position = glm::vec3( 0.0f, 0.0f, 5.0f);
