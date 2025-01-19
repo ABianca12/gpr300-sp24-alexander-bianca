@@ -1,15 +1,18 @@
 #version 450
 
+in vec3 outNormal;
 in Surface
 {
 	vec3 worldPosition; // Vertex world space position
 	vec3 worldNormal; // Vertex world space normal
 	vec2 texcoord;
+	mat3 TBN;
 }vs_surface;
 
 out vec4 fragColor; // Color of the fragment
 
 uniform sampler2D _MainTex;
+uniform sampler2D _NormalMap;
 
 // Light Source
 uniform vec3 lightDirection = vec3(0.0, -1.0, 0.0);
@@ -35,16 +38,15 @@ struct Material
 
 void main()
 {
-	// Diffusion
-	// Because of screen distortion from different screen resolutions
-	vec3 normal = normalize(vs_surface.worldNormal);
-
 	// Light pointing straight down
 	vec3 toLight = -lightDirection;
-	float diffuseFactor = max(dot(normal, toLight), 0.0);
-	
-	// Specular
 	vec3 toEye = normalize(eyePosition - vs_surface.worldPosition);
+
+	vec3 normal = texture(_NormalMap, vs_surface.texcoord).rgb;
+	normal = normal * 2.0 - 1.0;
+	normal = normalize(vs_surface.TBN * normal);
+
+	float diffuseFactor = max(dot(normal, toLight), 0.0);
 
 	// Blinn-phong half angle
 	vec3 halfAngle = normalize(toLight + toEye);
@@ -52,14 +54,7 @@ void main()
 
 	vec3 lightColor = (material.dCoff * diffuseFactor + material.sCoff * specularFactor) * lightColor;
 	lightColor += ambientLight * material.aCoff;
-
-	// Amount of light diffusely reflecting off surface
-	//vec3 diffuseColor = lightColor * diffuseFactor;
-
-	vec3 albedo = texture(_MainTex, vs_surface.texcoord).rgb;
 	
-	//vec3 objectColor = albedo * diffuseColor;
-	//fragColor = vec4(objectColor * diffuseColor, 1.0);
-
-	fragColor = vec4(albedo * lightColor, 1.0);
+	vec3 objectColor = texture(_MainTex, vs_surface.texcoord).rgb;
+	fragColor = vec4(objectColor * lightColor, 1.0);
 }

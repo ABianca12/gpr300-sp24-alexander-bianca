@@ -42,6 +42,10 @@ namespace ew {
 		{
 			ew::Vertex vertex;
 			vertex.pos = convertAIVec3(aiMesh->mVertices[i]);
+			if (aiMesh->HasTangentsAndBitangents())
+			{
+				vertex.tangent = convertAIVec3(aiMesh->mTangents[i]);
+			}
 			if (aiMesh->HasNormals()) {
 				vertex.normal = convertAIVec3(aiMesh->mNormals[i]);
 			}

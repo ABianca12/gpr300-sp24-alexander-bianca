@@ -54,7 +54,7 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 }
 
 // render loop
-void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLFWwindow* window, float deltaTime)
+void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLint normalMap, GLFWwindow* window, float deltaTime)
 {
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
@@ -68,6 +68,9 @@ void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLFWwindow* wind
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
 
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, normalMap);
+
 	shader.use();
 	shader.setMat4("transform_model", glm::mat4(1.0f));
 	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
@@ -77,6 +80,7 @@ void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLFWwindow* wind
 	shader.setFloat("material.sCoff", material.sCoff);
 	shader.setFloat("material.shine", material.shine);
 	shader.setInt("_Maintex", 0);
+	shader.setInt("_NormalMap", 1);
 
 	suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
@@ -99,8 +103,9 @@ int main() {
 	camera.target = glm::vec3( 0.0f, 0.0f, 0.0f );
 	camera.aspectRatio = (float)screenWidth / screenHeight;
 	camera.fov = 60.0f;
-
-	GLuint brickTexture = ew::loadTexture("assets/brick_color.jpg");
+	//brick_color.jpg PavingStones138.png
+	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
+	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -114,7 +119,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// This is our main render
-		qwerty(lit_shader, suzanne, brickTexture, window, deltaTime);
+		qwerty(lit_shader, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
 
 		drawUI();
 
