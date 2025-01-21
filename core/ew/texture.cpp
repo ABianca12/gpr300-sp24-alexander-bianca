@@ -20,6 +20,7 @@ static int getTextureFormat(int numComponents) {
 }
 namespace ew {
 	unsigned int loadTexture(const char* filePath) {
+		stbi_set_flip_vertically_on_load(true);
 		return loadTexture(filePath, GL_REPEAT, GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR, true);
 	}
 	unsigned int loadTexture(const char* filePath, int wrapMode, int magFilter, int minFilter, bool mipmap) {
@@ -33,6 +34,7 @@ namespace ew {
 		unsigned int texture;
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
+
 		int format = getTextureFormat(numComponents);
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
