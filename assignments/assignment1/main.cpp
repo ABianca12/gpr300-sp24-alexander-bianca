@@ -54,6 +54,26 @@ struct Framebuffer
 	GLuint depth;
 } framebuffer;
 
+struct FullScreenQuad
+{
+	GLuint vao;
+	GLuint vbo;
+} fullscreenQuad;
+// Equivelent to Framebuffer fullscreenbuffer
+
+static float quadVertices[] =
+{
+	// pos (x, y) texcoord (u, v)
+	-1.0f,  1.0f, 0.0f, 1.0f,
+	-1.0f, -1.0f, 0.0f, 0.0f,
+		1.0f, -1.0f, 1.0f, 0.0f,
+
+	-1.0f,  1.0f, 0.0f, 1.0f,
+		1.0f, -1.0f, 1.0f, 0.0f,
+		1.0f,  1.0f, 1.0f, 1.0f,
+
+};
+
 void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 {
 	camera->position = glm::vec3(0, 0, 5.0f);
@@ -64,6 +84,13 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 // render loop
 void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLint normalMap, GLFWwindow* window, float deltaTime)
 {
+	// Bind framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+
+	//RENDER Clear default buffer
+	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK); // Backface culling
@@ -97,13 +124,16 @@ void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLint normalMap,
 	camControl.move(window, &camera, deltaTime);
 
 	model.draw();
+
+	// Unbind frame buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 int main() {
 	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Shader lit_shader = ew::Shader("assets/fullscreen.vert", "assets/fullscreen.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -114,6 +144,23 @@ int main() {
 	//brick_color.jpg PavingStones138.png
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
+
+	// Initalize fullscreen quad
+	glGenVertexArrays(1, &fullscreenQuad.vao);
+	glGenBuffers(1, &fullscreenQuad.vbo);
+
+	// bind vao and vbo
+	glBindVertexArray(fullscreenQuad.vao);
+	glBindBuffer(GL_ARRAY_BUFFER, fullscreenQuad.vbo);
+
+	// buffer data to vbo
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	glBindVertexArray(0);
+
+	glEnableVertexAttribArray(0); // positions
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1); // texcoords
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*) (sizeof(float) * 2));
 
 	// Initalize framebuffers
 	glGenFramebuffers(1, &framebuffer.fbo);
@@ -135,6 +182,9 @@ int main() {
 		return 0;
 	}
 
+	// Unbinding framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
@@ -142,7 +192,7 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-		//RENDER
+		//RENDER Clear default buffer
 		glClearColor(0.6f,0.8f,0.92f,1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -174,6 +224,8 @@ void drawUI() {
 		ImGui::SliderFloat("Specular", &material.sCoff, 0.0f, 1.0f);
 		ImGui::SliderFloat("Shine", &material.shine, 2.0f, 1024.0f);
 	}
+
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.color0, ImVec2(800, 600));
 
 	ImGui::End();
 
