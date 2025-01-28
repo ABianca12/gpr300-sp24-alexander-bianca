@@ -134,6 +134,7 @@ int main() {
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Shader fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/fullscreen.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -145,9 +146,7 @@ int main() {
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
 
-	// Initalize framebuffers
-	glGenFramebuffers(1, &framebuffer.fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+
 
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
@@ -159,14 +158,18 @@ int main() {
 
 	// buffer data to vbo
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-	glBindVertexArray(0);
+	
 
 	glEnableVertexAttribArray(0); // positions
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(1); // texcoords
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
+	glBindVertexArray(0);
 
 	// Color attachment
+		// Initalize framebuffers
+	glGenFramebuffers(1, &framebuffer.fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 	glGenTextures(1, &framebuffer.color0);
 	glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
@@ -202,12 +205,12 @@ int main() {
 		// fullscreen pipeline
 		glDisable(GL_DEPTH_TEST);
 
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// render fullscreen quad
-		lit_shader.use();
-		lit_shader.setInt("texture0", 0);
+		fullscreen_shader.use();
+		fullscreen_shader.setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
