@@ -146,8 +146,6 @@ int main() {
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
 
-
-
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
 	glGenBuffers(1, &fullscreenQuad.vbo);
@@ -159,23 +157,22 @@ int main() {
 	// buffer data to vbo
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
 	
-
 	glEnableVertexAttribArray(0); // positions
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(1); // texcoords
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
 	glBindVertexArray(0);
 
-	// Color attachment
-		// Initalize framebuffers
+	// Initalize framebuffers
 	glGenFramebuffers(1, &framebuffer.fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+
+	// Color attachment
 	glGenTextures(1, &framebuffer.color0);
 	glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer.color0, 0);
 
 	// Check completeness
