@@ -133,7 +133,7 @@ int main() {
 	GLFWwindow* window = initWindow("Assignment 1", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-	ew::Shader lit_shader = ew::Shader("assets/fullscreen.vert", "assets/fullscreen.frag");
+	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -144,6 +144,10 @@ int main() {
 	//brick_color.jpg PavingStones138.png
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
+
+	// Initalize framebuffers
+	glGenFramebuffers(1, &framebuffer.fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
@@ -160,11 +164,7 @@ int main() {
 	glEnableVertexAttribArray(0); // positions
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(1); // texcoords
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*) (sizeof(float) * 2));
-
-	// Initalize framebuffers
-	glGenFramebuffers(1, &framebuffer.fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
 
 	// Color attachment
 	glGenTextures(1, &framebuffer.color0);
@@ -198,6 +198,21 @@ int main() {
 
 		// This is our main render
 		qwerty(lit_shader, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
+
+		// fullscreen pipeline
+		glDisable(GL_DEPTH_TEST);
+
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		// render fullscreen quad
+		lit_shader.use();
+		lit_shader.setInt("texture0", 0);
+		glBindVertexArray(fullscreenQuad.vao);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
 
 		drawUI();
 
