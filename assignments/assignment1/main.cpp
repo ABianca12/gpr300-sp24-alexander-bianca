@@ -135,6 +135,10 @@ int main() {
 
 	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/fullscreen.frag");
+	ew::Shader inverse_fullscreen_shader = ew::Shader("assets/inversefullscreen.vert", "assets/inversefullscreen.frag");
+	ew::Shader greyscale_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/greyscalefullscreen.frag");
+	ew::Shader blur_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/blur.frag");
+	ew::Shader chromematic_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/chromematic.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -206,8 +210,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// render fullscreen quad
-		fullscreen_shader.use();
-		fullscreen_shader.setInt("texture0", 0);
+		chromematic_fullscreen_shader.use();
+		chromematic_fullscreen_shader.setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
