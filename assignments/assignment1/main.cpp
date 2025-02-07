@@ -34,6 +34,10 @@ ew::Transform suzanneTransform;
 
 #include <ew/texture.h>
 
+#include <ab/framebuffer.h>
+ab::Framebuffer framebuffer;
+ab::Framebuffer hdrFramebuffer;
+
 struct Material
 {
 	// Ambient coefficent 0-1
@@ -45,14 +49,6 @@ struct Material
 	// Size of specular highlight
 	float shine = 125;
 } material;
-
-struct Framebuffer
-{
-	GLuint fbo;
-	GLuint color0;
-	GLuint color1;
-	GLuint depth;
-} framebuffer;
 
 struct FullScreenQuad
 {
@@ -82,7 +78,7 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 }
 
 // render loop
-void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLint normalMap, GLFWwindow* window, float deltaTime)
+void renderLoop(ew::Shader shader, ew::Model model, GLuint texture, GLint normalMap, GLFWwindow* window, float deltaTime)
 {
 	// Bind framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
@@ -139,6 +135,7 @@ int main() {
 	ew::Shader greyscale_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/greyscalefullscreen.frag");
 	ew::Shader blur_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/blur.frag");
 	ew::Shader chromematic_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/chromematic.frag");
+	ew::Shader hdr_shader = ew::Shader("assets/hdr.vert", "assets/hdr.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -146,9 +143,12 @@ int main() {
 	camera.target = glm::vec3( 0.0f, 0.0f, 0.0f );
 	camera.aspectRatio = (float)screenWidth / screenHeight;
 	camera.fov = 60.0f;
+
 	//brick_color.jpg PavingStones138.png
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
+
+	//framebuffer = ab::createFrameBuffer(screenWidth, screenHeight);
 
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
@@ -172,12 +172,13 @@ int main() {
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
 	// Color attachment
-	glGenTextures(1, &framebuffer.color0);
-	glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
+	glGenTextures(1, &framebuffer.colorBuffer[0]);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer.color0, 0);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer.colorBuffer[0], 0);
 
 	// Check completeness
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -201,7 +202,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// This is our main render
-		qwerty(lit_shader, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
+		renderLoop(lit_shader, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
 
 		// fullscreen pipeline
 		glDisable(GL_DEPTH_TEST);
@@ -214,7 +215,7 @@ int main() {
 		chromematic_fullscreen_shader.setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, framebuffer.color0);
+		glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 
@@ -244,7 +245,7 @@ void drawUI() {
 		ImGui::SliderFloat("Shine", &material.shine, 2.0f, 1024.0f);
 	}
 
-	ImGui::Image((ImTextureID)(intptr_t)framebuffer.color0, ImVec2(800, 600));
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.colorBuffer[0], ImVec2(800, 600));
 
 	ImGui::End();
 
