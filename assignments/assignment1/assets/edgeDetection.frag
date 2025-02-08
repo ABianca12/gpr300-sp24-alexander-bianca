@@ -3,7 +3,7 @@
 out vec4 fragColor; // Color of the fragment
 in vec2 vs_texcoord;
 
-uniform sampler2D tex;
+uniform sampler2D texture0;
 
 const float offset = 1.0 / 300.0;
 const vec2 offsets[9] = vec2[](
@@ -33,10 +33,10 @@ void main()
 
 	for (int i = 0; i < 9; i++)
 	{
-		vec3 textureColor = texture(tex, vs_texcoord + offsets[i]).rgb;
+		vec3 textureColor = texture(texture0, vs_texcoord + offsets[i]).rgb;
 		average += textureColor * (kernel[i]/strength);
 	}
 
-	vec3 albido = texture(tex, vs_texcoord).rgb;
+	vec3 albedo = texture(texture0, vs_texcoord).rgb;
 	fragColor = vec4(vec3(average), 1.0);
 }

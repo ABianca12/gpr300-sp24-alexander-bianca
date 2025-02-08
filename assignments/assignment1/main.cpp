@@ -38,6 +38,20 @@ ew::Transform suzanneTransform;
 ab::Framebuffer framebuffer;
 ab::Framebuffer hdrFramebuffer;
 
+static std::vector<std::string> effects
+{
+	"None",
+	"Blur",
+	"Box Blur",
+	"Chromatic Aberration",
+	"Edge Detection",
+	"Greyscale",
+	"HDR",
+	"Inverted",
+
+
+};
+
 struct Material
 {
 	// Ambient coefficent 0-1
@@ -137,6 +151,7 @@ int main() {
 	ew::Shader chromematic_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/chromematic.frag");
 	ew::Shader hdr_shader = ew::Shader("assets/hdr.vert", "assets/hdr.frag");
 	ew::Shader edge_shader = ew::Shader("assets/edgeDetection.vert", "assets/edgeDetection.frag");
+	ew::Shader vignette_shader = ew::Shader("assets/vignette.vert", "assets/vignette.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -189,8 +204,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// render fullscreen quad
-		edge_shader.use();
-		edge_shader.setInt("texture0", 0);
+		vignette_shader.use();
+		vignette_shader.setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);
