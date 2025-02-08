@@ -38,6 +38,5 @@ void main()
 	}
 
 	vec3 albido = texture(tex, vs_texcoord).rgb;
-
 	fragColor = vec4(vec3(average), 1.0);
 }
