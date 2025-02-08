@@ -18,6 +18,8 @@ int screenWidth = 1080;
 int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
+const int numOfShaders = 12;
+int currentShader = 0;
 
 // Cache
 #include <ew/shader.h>
@@ -45,12 +47,16 @@ static std::vector<std::string> effects
 	"Box Blur",
 	"Chromatic Aberration",
 	"Edge Detection",
+	"Film Grain",
 	"Greyscale",
 	"HDR",
 	"Inverted",
-
-
+	"Lens Disortion",
+	"Sharp",
+	"Vignette",
 };
+
+static std::vector<ew::Shader> shaders;
 
 struct Material
 {
@@ -144,14 +150,32 @@ int main() {
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+
 	ew::Shader fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/fullscreen.frag");
-	ew::Shader inverse_fullscreen_shader = ew::Shader("assets/inversefullscreen.vert", "assets/inversefullscreen.frag");
-	ew::Shader greyscale_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/greyscalefullscreen.frag");
+	shaders.push_back(fullscreen_shader);
 	ew::Shader blur_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/blur.frag");
+	shaders.push_back(blur_fullscreen_shader);
+	ew::Shader box_blur_shader = ew::Shader("assets/boxblur.vert", "assets/boxblur.frag");
+	shaders.push_back(box_blur_shader);
 	ew::Shader chromematic_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/chromematic.frag");
-	ew::Shader hdr_shader = ew::Shader("assets/hdr.vert", "assets/hdr.frag");
+	shaders.push_back(chromematic_fullscreen_shader);
 	ew::Shader edge_shader = ew::Shader("assets/edgeDetection.vert", "assets/edgeDetection.frag");
+	shaders.push_back(edge_shader);
+	ew::Shader filmgrain_shader = ew::Shader("assets/filmgrain.vert", "assets/filmgrain.frag");
+	shaders.push_back(filmgrain_shader);
+	ew::Shader greyscale_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/greyscalefullscreen.frag");
+	shaders.push_back(greyscale_fullscreen_shader);
+	ew::Shader hdr_shader = ew::Shader("assets/hdr.vert", "assets/hdr.frag");
+	shaders.push_back(hdr_shader);
+	ew::Shader inverse_fullscreen_shader = ew::Shader("assets/inversefullscreen.vert", "assets/inversefullscreen.frag");
+	shaders.push_back(inverse_fullscreen_shader);
+	ew::Shader lendisortion_shader = ew::Shader("assets/lendisortion.vert", "assets/lendisortion.frag");
+	shaders.push_back(lendisortion_shader);
+	ew::Shader sharp_shader = ew::Shader("assets/sharp.vert", "assets/sharp.frag");
+	shaders.push_back(sharp_shader);
 	ew::Shader vignette_shader = ew::Shader("assets/vignette.vert", "assets/vignette.frag");
+	shaders.push_back(vignette_shader);
+
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -181,7 +205,9 @@ int main() {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
 	glBindVertexArray(0);
 
-	framebuffer = ab::createFrameBuffer(screenWidth, screenHeight, GL_RGB);
+	framebuffer = ab::createFramebuffer(screenWidth, screenHeight, GL_RGB);
+
+	//framebuffer = ab::createHDR_Framebuffer(screenWidth, screenHeight);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -204,8 +230,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// render fullscreen quad
-		vignette_shader.use();
-		vignette_shader.setInt("texture0", 0);
+		shaders.at(currentShader).use();
+		shaders.at(currentShader).setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);
@@ -226,6 +252,9 @@ void drawUI() {
 
 	ImGui::Begin("Settings");
 
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.colorBuffer[0], ImVec2(800, 600));
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.colorBuffer[1], ImVec2(800, 600));
+
 	if (ImGui::Button("Reset Camera"))
 	{
 		resetCam(&camera, &camControl);
@@ -238,7 +267,57 @@ void drawUI() {
 		ImGui::SliderFloat("Shine", &material.shine, 2.0f, 1024.0f);
 	}
 
-	ImGui::Image((ImTextureID)(intptr_t)framebuffer.colorBuffer[0], ImVec2(800, 600));
+	if (ImGui::CollapsingHeader("Effects"))
+	{
+		if (ImGui::Button("None"))
+		{
+			currentShader = 0;
+		}
+		if (ImGui::Button("Blur"))
+		{
+			currentShader = 1;
+		}
+		if (ImGui::Button("Box Blur"))
+		{
+			currentShader = 2;
+		}
+		if (ImGui::Button("Chromematic"))
+		{
+			currentShader = 3;
+		}
+		if (ImGui::Button("Edge Detection"))
+		{
+			currentShader = 4;
+		}
+		if (ImGui::Button("Film Grain"))
+		{
+			currentShader = 5;
+		}
+		if (ImGui::Button("Grey Scale"))
+		{
+			currentShader = 6;
+		}
+		if (ImGui::Button("HDR"))
+		{
+			currentShader = 7;
+		}
+		if (ImGui::Button("Inverted Colors"))
+		{
+			currentShader = 8;
+		}
+		if (ImGui::Button("Lens Disortion"))
+		{
+			currentShader = 9;
+		}
+		if (ImGui::Button("Sharp"))
+		{
+			currentShader = 10;
+		}
+		if (ImGui::Button("Vignette"))
+		{
+			currentShader = 11;
+		}
+	}
 
 	ImGui::End();
 

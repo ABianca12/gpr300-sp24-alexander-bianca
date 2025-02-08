@@ -13,7 +13,6 @@ void main()
 	float transformNormal = length(transform);
 
 	vec3 color = texture(texture0, vs_texcoord).rgb;
-
 	color *= (1 - transformNormal * strength);
 
 	fragColor = vec4(color, 1.0);
