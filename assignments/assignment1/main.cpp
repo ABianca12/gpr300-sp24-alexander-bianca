@@ -136,6 +136,7 @@ int main() {
 	ew::Shader blur_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/blur.frag");
 	ew::Shader chromematic_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/chromematic.frag");
 	ew::Shader hdr_shader = ew::Shader("assets/hdr.vert", "assets/hdr.frag");
+	ew::Shader edge_shader = ew::Shader("assets/edgeDetection.vert", "assets/edgeDetection.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -147,8 +148,6 @@ int main() {
 	//brick_color.jpg PavingStones138.png
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
-
-	//framebuffer = ab::createFrameBuffer(screenWidth, screenHeight);
 
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
@@ -167,28 +166,7 @@ int main() {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
 	glBindVertexArray(0);
 
-	// Initalize framebuffers
-	glGenFramebuffers(1, &framebuffer.fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
-
-	// Color attachment
-	glGenTextures(1, &framebuffer.colorBuffer[0]);
-	glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer.colorBuffer[0], 0);
-
-	// Check completeness
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		printf("Buffer not complete!");
-		return 0;
-	}
-
-	// Unbinding framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	framebuffer = ab::createFrameBuffer(screenWidth, screenHeight, GL_RGB);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -211,8 +189,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// render fullscreen quad
-		chromematic_fullscreen_shader.use();
-		chromematic_fullscreen_shader.setInt("texture0", 0);
+		edge_shader.use();
+		edge_shader.setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);

@@ -14,6 +14,6 @@ namespace ab
 		unsigned int height;
 	};
 
-	Framebuffer createFrameBuffer(unsigned int width, GLuint height, GLuint colorFormat);
+	Framebuffer createFrameBuffer(unsigned int width, unsigned int height, GLuint colorFormat);
 	Framebuffer createHDR_FramBuffer(unsigned int width, unsigned int height);
 }
