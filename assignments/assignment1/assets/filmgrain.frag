@@ -5,25 +5,15 @@ in vec2 vs_texcoord;
 
 uniform sampler2D texture0;
 
-float strength = 0.1;
-
-uniform float time;
-
-uniform float toRadians = 3.14 / 180;
+float strength = 0.2;
 
 void main()
 {	
-	float noise = fract(100 * sin(vs_texcoord.x + vs_texcoord.y * time) * toRadians);
+	float noise = (fract(sin(dot(vs_texcoord, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 2.0;
 
-	vec2 textSize = textureSize(texture0, 0).xy;
+	vec3 color = texture(texture0, vs_texcoord).rgb;
 
-	vec2 texCoord = vs_texcoord.xy / textSize;
-
-	vec4 color = texture(texture0, texCoord);
-
-	strength *= noise;
-
-	color.rgb += strength;
+	vec3 color2 = color - noise * strength;
 	
-	FragColor = color;
+	FragColor = vec4(color2, 1.0);
 }

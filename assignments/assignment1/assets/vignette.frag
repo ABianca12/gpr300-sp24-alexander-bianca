@@ -5,7 +5,7 @@ in vec2 vs_texcoord;
 
 uniform sampler2D texture0;
 
-uniform float strength;
+uniform float strength = 1.0;
 
 void main()
 {

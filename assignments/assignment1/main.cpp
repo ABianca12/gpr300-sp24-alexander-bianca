@@ -48,6 +48,7 @@ static std::vector<std::string> effects
 	"Chromatic Aberration",
 	"Edge Detection",
 	"Film Grain",
+	"Fog",
 	"Greyscale",
 	"HDR",
 	"Inverted",
@@ -163,6 +164,8 @@ int main() {
 	shaders.push_back(edge_shader);
 	ew::Shader filmgrain_shader = ew::Shader("assets/filmgrain.vert", "assets/filmgrain.frag");
 	shaders.push_back(filmgrain_shader);
+	ew::Shader fog_shader = ew::Shader("assets/fog.vert", "assets/fog.frag");
+	shaders.push_back(fog_shader);
 	ew::Shader greyscale_fullscreen_shader = ew::Shader("assets/fullscreen.vert", "assets/greyscalefullscreen.frag");
 	shaders.push_back(greyscale_fullscreen_shader);
 	ew::Shader hdr_shader = ew::Shader("assets/hdr.vert", "assets/hdr.frag");
@@ -273,50 +276,128 @@ void drawUI() {
 		{
 			currentShader = 0;
 		}
+
+		if (ImGui::CollapsingHeader("Blur Settings"))
+		{
+			
+		}
+
 		if (ImGui::Button("Blur"))
 		{
 			currentShader = 1;
 		}
+
+		if (ImGui::CollapsingHeader("Box Blur Settings"))
+		{
+			
+		}
+
 		if (ImGui::Button("Box Blur"))
 		{
 			currentShader = 2;
 		}
+
+		if (ImGui::CollapsingHeader("Chromematic Settings"))
+		{
+			
+		}
+
 		if (ImGui::Button("Chromematic"))
 		{
 			currentShader = 3;
 		}
+		
+		if (ImGui::CollapsingHeader("Edge Detection Settings"))
+		{
+			
+		}
+
 		if (ImGui::Button("Edge Detection"))
 		{
 			currentShader = 4;
 		}
+
+		if (ImGui::CollapsingHeader("Film Grain Settings"))
+		{
+			
+		}
+
 		if (ImGui::Button("Film Grain"))
 		{
 			currentShader = 5;
 		}
-		if (ImGui::Button("Grey Scale"))
+
+		if (ImGui::CollapsingHeader("Fog Settings"))
+		{
+
+		}
+
+		if (ImGui::Button("Fog"))
 		{
 			currentShader = 6;
 		}
-		if (ImGui::Button("HDR"))
+
+		if (ImGui::CollapsingHeader("Grey Scale Settings"))
+		{
+			
+		}
+
+		if (ImGui::Button("Grey Scale"))
 		{
 			currentShader = 7;
 		}
-		if (ImGui::Button("Inverted Colors"))
+
+		if (ImGui::CollapsingHeader("HDR Settings"))
+		{
+			
+		}
+
+		if (ImGui::Button("HDR"))
 		{
 			currentShader = 8;
 		}
-		if (ImGui::Button("Lens Disortion"))
+
+		if (ImGui::CollapsingHeader("Inverted Colors Settings"))
+		{
+			
+		}
+
+		if (ImGui::Button("Inverted Colors"))
 		{
 			currentShader = 9;
 		}
-		if (ImGui::Button("Sharp"))
+
+		if (ImGui::CollapsingHeader("Lens Disortion Settings"))
+		{
+			
+		}
+
+		if (ImGui::Button("Lens Disortion"))
 		{
 			currentShader = 10;
 		}
-		if (ImGui::Button("Vignette"))
+
+		if (ImGui::CollapsingHeader("Sharp Settings"))
+		{
+			
+		}
+
+		if (ImGui::Button("Sharp"))
 		{
 			currentShader = 11;
 		}
+
+		if (ImGui::CollapsingHeader("Vignette Settings"))
+		{
+
+		}
+
+		if (ImGui::Button("Vignette"))
+		{
+			currentShader = 12;
+		}
+
+		
 	}
 
 	ImGui::End();
