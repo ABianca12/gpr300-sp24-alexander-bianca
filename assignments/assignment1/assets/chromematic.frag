@@ -3,7 +3,11 @@
 out vec4 FragColor;
 in vec2 vs_texcoord;
 
-const vec3 offset = vec3(0.009, 0.006, -0.006);
+uniform float offsetR = 0.009;
+uniform float offsetG = 0.006;
+uniform float offsetB = -0.006;
+
+const vec3 offset = vec3(offsetR, offsetG, offsetB);
 const vec2 direction = vec2(1.0);
 
 uniform sampler2D texture0;

@@ -4,7 +4,6 @@
 
 out vec4 FragColor;
 in vec2 vs_texcoord;
-in vec4 color;
 
 uniform sampler2D texture0;
 uniform vec3 radialDisortion;
@@ -42,5 +41,7 @@ void main()
 
 	distortedCoords = (distortedCoords + 1.0) / 2.0;
 
-	FragColor = color * texture(texture0, distortedCoords);
+	vec3 color = texture(texture0, distortedCoords).rgb;
+
+	FragColor = vec4(color, 1.0);
 }

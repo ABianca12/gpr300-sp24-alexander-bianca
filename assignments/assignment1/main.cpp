@@ -18,7 +18,6 @@ int screenWidth = 1080;
 int screenHeight = 720;
 float prevFrameTime;
 float deltaTime;
-const int numOfShaders = 12;
 int currentShader = 0;
 
 // Cache
@@ -58,6 +57,21 @@ static std::vector<std::string> effects
 };
 
 static std::vector<ew::Shader> shaders;
+
+// Effect variables
+float blurStrength = 16.0f;
+float boxBlurStrength = 8.0f;
+float chromeRed = 0.009;
+float chromeGreen = 0.006;
+float chromeBlue = -0.006;
+float edgeStrength = -10.0f;
+float filmGrainStrength = 0.2f;
+float fogOffset = 1.0;
+float fogSteepness = 1.0;
+float hdrExposure = 2.0;
+glm::vec3 radialDisortion = glm::vec3(1.0);
+glm::vec2 tangentDistortion = glm::vec2(1.0);
+float vignetteStrength = 1.0;
 
 struct Material
 {
@@ -208,9 +222,7 @@ int main() {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
 	glBindVertexArray(0);
 
-	framebuffer = ab::createFramebuffer(screenWidth, screenHeight, GL_RGB);
-
-	//framebuffer = ab::createHDR_Framebuffer(screenWidth, screenHeight);
+	framebuffer = ab::createHDR_Framebuffer(screenWidth, screenHeight);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -233,8 +245,95 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// render fullscreen quad
-		shaders.at(currentShader).use();
-		shaders.at(currentShader).setInt("texture0", 0);
+
+		switch (currentShader)
+		{
+			case 0:
+				// None
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				break;
+			case 1:
+				// Blur
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("strength", blurStrength);
+				break;
+			case 2:
+				// Box Blur
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("strength", boxBlurStrength);
+				break;
+			case 3:
+				// Chrome
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("offsetR", chromeRed);
+				shaders.at(currentShader).setFloat("offsetG", chromeGreen);
+				shaders.at(currentShader).setFloat("offsetB", chromeBlue);
+				break;
+			case 4:
+				// Edge
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("strength", edgeStrength);
+				break;
+			case 5:
+				// Filmgrain
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("strength", filmGrainStrength);
+			case 6:
+				// Fog
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setInt("depth", 1);
+				shaders.at(currentShader).setFloat("uOffset", fogOffset);
+				shaders.at(currentShader).setFloat("uSteepness", fogSteepness);
+				break;
+			case 7:
+				// Grey scale
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				break;
+			case 8:
+				// HDR
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("exposure", hdrExposure);
+				break;
+			case 9:
+				// Inverted Colors
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				break;
+			case 10:
+				// Lens Distortion
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setVec3("radialDisortion", radialDisortion);
+				shaders.at(currentShader).setVec2("tangentDistortion", tangentDistortion);
+				break;
+			case 11:
+				// Sharp
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				break;
+			case 12:
+				// Vignette
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				shaders.at(currentShader).setFloat("strength", vignetteStrength);
+				break;
+			default:
+				shaders.at(currentShader).use();
+				shaders.at(currentShader).setInt("texture0", 0);
+				break;
+		}
+
+		//shaders.at(currentShader).use();
+		//shaders.at(currentShader).setInt("texture0", 0);
 		glBindVertexArray(fullscreenQuad.vao);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.colorBuffer[0]);
@@ -276,20 +375,15 @@ void drawUI() {
 		{
 			currentShader = 0;
 		}
-
-		if (ImGui::CollapsingHeader("Blur Settings"))
-		{
-			
-		}
-
+		
 		if (ImGui::Button("Blur"))
 		{
 			currentShader = 1;
+		
 		}
-
-		if (ImGui::CollapsingHeader("Box Blur Settings"))
+		if (ImGui::CollapsingHeader("Blur Settings"))
 		{
-			
+			ImGui::SliderFloat("Strength", &blurStrength, 10.0f, 30.0f);
 		}
 
 		if (ImGui::Button("Box Blur"))
@@ -297,29 +391,31 @@ void drawUI() {
 			currentShader = 2;
 		}
 
-		if (ImGui::CollapsingHeader("Chromematic Settings"))
+		if (ImGui::CollapsingHeader("Box Blur Settings"))
 		{
-			
+			ImGui::SliderFloat("Strength", &boxBlurStrength, 5.0f, 30.0f);
 		}
-
+		
 		if (ImGui::Button("Chromematic"))
 		{
 			currentShader = 3;
 		}
 		
-		if (ImGui::CollapsingHeader("Edge Detection Settings"))
+		if (ImGui::CollapsingHeader("Chromematic Settings"))
 		{
-			
+			ImGui::SliderFloat("Red", &chromeRed, -0.010f, 0.010f);
+			ImGui::SliderFloat("Green", &chromeGreen, -0.010f, 0.010f);
+			ImGui::SliderFloat("Blue", &chromeBlue, -0.010f, 0.010f);
 		}
 
 		if (ImGui::Button("Edge Detection"))
 		{
 			currentShader = 4;
 		}
-
-		if (ImGui::CollapsingHeader("Film Grain Settings"))
+		
+		if (ImGui::CollapsingHeader("Edge Detection Settings"))
 		{
-			
+			ImGui::SliderFloat("Strength", &edgeStrength, -15.0f, -5.0f);
 		}
 
 		if (ImGui::Button("Film Grain"))
@@ -327,9 +423,9 @@ void drawUI() {
 			currentShader = 5;
 		}
 
-		if (ImGui::CollapsingHeader("Fog Settings"))
+		if (ImGui::CollapsingHeader("Film Grain Settings"))
 		{
-
+			ImGui::SliderFloat("Strength", &filmGrainStrength, 0.0f, 1.0f);
 		}
 
 		if (ImGui::Button("Fog"))
@@ -337,9 +433,10 @@ void drawUI() {
 			currentShader = 6;
 		}
 
-		if (ImGui::CollapsingHeader("Grey Scale Settings"))
+		if (ImGui::CollapsingHeader("Fog Settings"))
 		{
-			
+			ImGui::SliderFloat("Fog Offset", &fogOffset, -2.0f, 2.0f);
+			ImGui::SliderFloat("Fog Steepness", &fogSteepness, 0.0f, 1.0f);
 		}
 
 		if (ImGui::Button("Grey Scale"))
@@ -347,9 +444,9 @@ void drawUI() {
 			currentShader = 7;
 		}
 
-		if (ImGui::CollapsingHeader("HDR Settings"))
+		if (ImGui::CollapsingHeader("Grey Scale Settings"))
 		{
-			
+			ImGui::Text("None :(");
 		}
 
 		if (ImGui::Button("HDR"))
@@ -357,9 +454,9 @@ void drawUI() {
 			currentShader = 8;
 		}
 
-		if (ImGui::CollapsingHeader("Inverted Colors Settings"))
+		if (ImGui::CollapsingHeader("HDR Settings"))
 		{
-			
+			ImGui::SliderFloat("Exposure", &hdrExposure, 0.0f, 10.0f);
 		}
 
 		if (ImGui::Button("Inverted Colors"))
@@ -367,9 +464,9 @@ void drawUI() {
 			currentShader = 9;
 		}
 
-		if (ImGui::CollapsingHeader("Lens Disortion Settings"))
+		if (ImGui::CollapsingHeader("Inverted Colors Settings"))
 		{
-			
+			ImGui::Text("None :(");
 		}
 
 		if (ImGui::Button("Lens Disortion"))
@@ -377,9 +474,10 @@ void drawUI() {
 			currentShader = 10;
 		}
 
-		if (ImGui::CollapsingHeader("Sharp Settings"))
+		if (ImGui::CollapsingHeader("Lens Disortion Settings"))
 		{
-			
+			ImGui::SliderFloat3("Radial Distortion", &radialDisortion.x, 1.0f, 100.0f);
+			ImGui::SliderFloat2("Tangent Distortion", &tangentDistortion.x, 1.0f, 100.0f);
 		}
 
 		if (ImGui::Button("Sharp"))
@@ -387,9 +485,9 @@ void drawUI() {
 			currentShader = 11;
 		}
 
-		if (ImGui::CollapsingHeader("Vignette Settings"))
+		if (ImGui::CollapsingHeader("Sharp Settings"))
 		{
-
+			ImGui::Text("None :(");
 		}
 
 		if (ImGui::Button("Vignette"))
@@ -397,6 +495,10 @@ void drawUI() {
 			currentShader = 12;
 		}
 
+		if (ImGui::CollapsingHeader("Vignette Settings"))
+		{
+			ImGui::SliderFloat("Strength", &vignetteStrength, 0.0f, 10.0f);
+		}
 		
 	}
 

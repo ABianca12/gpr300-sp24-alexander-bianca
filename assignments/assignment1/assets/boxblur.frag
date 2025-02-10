@@ -20,7 +20,7 @@ const vec2 offsets[9] = vec2[](
 	vec2(offset, -offset) // bottom right
 );
 
-const float strength = 16.0;
+uniform float strength = 8.0;
 const float kernel[9] = float[](
 	1.0, 1.0, 1.0,
 	1.0, 1.0, 1.0,

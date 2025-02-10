@@ -8,10 +8,14 @@ in vec2 vs_texcoord;
 uniform sampler2D texture0;
 uniform sampler2D depth;
 
-vec3 fogColor = vec3(1.0);
+uniform float fogColorR = 1.0;
+uniform float fogColorG = 1.0;
+uniform float fogColorB = 1.0;
 
-float near = 0.1f;
-float far = 100.0f;
+vec3 fogColor = vec3(fogColorR, fogColorG, fogColorB);
+
+uniform float near = 0.1f;
+uniform float far = 100.0f;
 
 uniform float uOffset;
 uniform float uSteepness;

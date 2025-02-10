@@ -1,20 +1,12 @@
 #version 450
 
-// From https://medium.com/@vlh2604/real-time-radial-and-tangential-lens-distortion-with-opengl-a55b7493e207
-
 layout (location= 0) in vec2 in_position; // vertx pos in model space
 layout (location= 1) in vec2 in_texcoord;
-layout (location = 2) in vec3 aColor;
 
 out vec2 vs_texcoord;
-out vec4 color;
-
-// what is getting passed to gpu
-out vec3 vs_normal;
 
 void main()
 {
-	color = vec4(aColor, 1.0);
 	vs_texcoord = in_texcoord;
 	gl_Position = vec4(in_position.xy, 0.0, 1.0);
 }
