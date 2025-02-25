@@ -2,7 +2,6 @@
 #include <math.h>
 
 #include <ew/external/glad.h>
-//#include <ew/externalshader.h>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -16,6 +15,8 @@ void drawUI();
 //Global state
 int screenWidth = 1080;
 int screenHeight = 720;
+int shadowWidth = 256;
+int shadowHeight = 256;
 float prevFrameTime;
 float deltaTime;
 
@@ -64,30 +65,27 @@ struct DepthBuffer
 
 	void init()
 	{
-
 		//buffer code
 		glGenFramebuffers(1, &fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-
 		//create depth
 		glGenTextures(1, &depth);
-
 		glBindTexture(GL_TEXTURE_2D, depth);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, 1024, 1024, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
-
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
 			printf("frame buffer is not complete!");
-
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -106,23 +104,31 @@ void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model 
 {
 	const auto viewProj = camera.projectionMatrix() * camera.viewMatrix();
 
-	const auto lightProj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 100.0f);
-	const auto lightView = glm::lookAt(light.position, glm::vec3(0.0f), glm::vec3(0.0, -1.0f, 0.0f));
-	const auto lightViewProj = lightProj * lightView;
+	float nearPlane = 1.0f, farPlane = 7.5f;
+
+	glm::mat4 lightProj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, nearPlane, farPlane);
+	glm::mat4 lightView = glm::lookAt(light.position, glm::vec3(0.0f), glm::vec3(0.0, 1.0f, 0.0f));
+	glm::mat4 lightSpaceMatrix = lightProj * lightView;
+
+	//glViewport(0, 0, shadowWidth, shadowHeight);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.fbo);
 	{
 		glEnable(GL_DEPTH_TEST);
-		glViewport(0, 0, 256, 256);
+		
 		glClear(GL_DEPTH_BUFFER_BIT);
 
 		shadowPass.use();
 
 		shadowPass.setMat4("model", glm::mat4(1.0f));
-		shadowPass.setMat4("lightViewProj", lightViewProj);
+		shadowPass.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+
+		// draw
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	//glViewport(0, 0, screenWidth, screenHeight);
 
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
@@ -135,12 +141,14 @@ void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model 
 
 	shader.use();
 
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	shader.setInt("shadowMap", 0);
 
-	shader.setMat4("transform_model", glm::mat4(1.0f));
-	shader.setMat4("lightViewProj", lightViewProj);
+	shader.setMat4("model", glm::mat4(1.0f));
+	shader.setMat4("transform_model", suzanneTransform.modelMatrix());
+	shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 	shader.setMat4("camera_viewproj", viewProj);
-	shader.setVec3("eyePosition", camera.position);
 
 	shader.setFloat("material.aCoff", material.aCoff);
 	shader.setFloat("material.dCoff", material.dCoff);
@@ -150,19 +158,13 @@ void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model 
 	shader.setVec3("light.color", light.color);
 	shader.setVec3("light.position", light.position);
 
-	suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
-
-	shader.setMat4("transform_model", suzanneTransform.modelMatrix());
-
-	camControl.move(window, &camera, deltaTime);
-
 	model.draw();
 
 	plane.draw();
 }
 
 int main() {
-	GLFWwindow* window = initWindow("Assignment 0", screenWidth, screenHeight);
+	GLFWwindow* window = initWindow("Assignment 2", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	ew::Shader blinnShader = ew::Shader("assets/blinnphong.vert", "assets/blinnphong.frag");
@@ -179,6 +181,8 @@ int main() {
 	GLuint pavingTexture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
 	GLuint pavingNormalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
 
+	depthBuffer.init();
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
@@ -186,9 +190,9 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-		//RENDER
-		glClearColor(0.6f,0.8f,0.92f,1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		camControl.move(window, &camera, deltaTime);
+
+		suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
 		// This is our main render
 		qwerty(blinnShader, shadowPass, plane, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
@@ -211,6 +215,8 @@ void drawUI() {
 	{
 		resetCam(&camera, &camControl);
 	}
+
+	ImGui::Image((ImTextureID)(intptr_t)depthBuffer.depth, ImVec2(800, 600));
 
 	if (ImGui::CollapsingHeader("Material")) {
 		ImGui::SliderFloat("Ambient", &material.aCoff, 0.0f, 1.0f);

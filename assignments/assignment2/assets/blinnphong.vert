@@ -6,20 +6,20 @@ layout (location= 2) in vec2 in_texcoord;
 
 uniform mat4 transform_model;
 uniform mat4 camera_viewproj;
-uniform mat3 lightViewProj;
+uniform mat4 lightSpaceMatrix;
 
 // what is getting passed to gpu
 out vec3 vsFragWorldPos;
-out vec3 vsFragLightPos;
+out vec4 vsFragLightPos;
 out vec3 vs_normal;
 out vec2 vs_texcoord;
 
 void main()
 {
-	vec4 worldPos = model * vec4(in_position, 1.0);
+	vec4 worldPos = transform_model * vec4(in_position, 1.0);
 
 	vsFragWorldPos = worldPos.xyz;
-	vsFragLightPos = lightViewProj * worldPos;
+	vsFragLightPos = lightSpaceMatrix * vec4(vsFragWorldPos, 1.0);
 	vs_normal = transpose(inverse(mat3(transform_model))) * in_normal;
 	vs_texcoord = in_texcoord;
 	gl_Position = camera_viewproj * worldPos;

@@ -8,9 +8,10 @@ uniform vec3 lightPos;
 uniform vec3 lightColor;
 uniform sampler2D shadowMap;
 
-in vec3 vsPosition;
-in vec3 vsNormal;
-in vec2 vsTexcoord;
+in vec3 vsFragWorldPos;
+in vec3 vs_normal;
+in vec2 vs_texcoord;
+in vec4 vsFragLightPos;
 
 struct Material
 {
@@ -28,12 +29,12 @@ struct Light
 {
 	vec3 color;
 	vec3 position;
-};
+} light;
 
-float shadowCalc(vec4 fragPosLight)
+float shadowCalc(vec4 vsFragPosLight)
 {
 	// Perspective divide
-	vec3 projCoords = fragPosLight.xyz / fragPosLight.xyz;
+	vec3 projCoords = vsFragPosLight.xyz / vsFragPosLight.xyz;
 	projCoords = (projCoords * 0.5) + 0.5;
 
 	float closestDepth = texture(shadowMap, projCoords.xy).r;
@@ -63,15 +64,14 @@ vec3 blinnphong(vec3 normal, vec3 fragPos)
 
 void main()
 {
-	vec3 normal = normalize(vsNormal);
-	float shadow = shadowCalc(fragPosLight);
-
-	vec3 lighting = blinnPhong(normal, vsPosition);
+	vec3 normal = normalize(vs_normal);
+	float shadow = shadowCalc(vsFragLightPos);
+	vec3 lighting = blinnphong(normal, vsFragWorldPos);
 	lighting *= (1.0 - shadow);
-	lighting *= vec3(1.0) * material.Ambient;
-	lighting = light.Color;
+	lighting *= vec3(1.0) * material.aCoff;
+	lighting *= light.color;
 
-	vec3 objectColor = normal * 0.5 + 0.5;
+	vec3 objectColor = texture(shadowMap, vs_texcoord).rbg;
 
-	FragColor = vec4(objectColor * lighting, 1.0);
+	FragColor = vec4(objectColor, 1.0);
 }
