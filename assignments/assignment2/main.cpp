@@ -145,7 +145,7 @@ void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model 
 	glBindTexture(GL_TEXTURE_2D, texture);
 	shader.setInt("shadowMap", 0);
 
-	shader.setMat4("model", glm::mat4(1.0f));
+	//shader.setMat4("model", glm::mat4(1.0f));
 	shader.setMat4("transform_model", suzanneTransform.modelMatrix());
 	shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 	shader.setMat4("camera_viewproj", viewProj);
