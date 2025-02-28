@@ -17,7 +17,8 @@ struct Material
 	float dCoff;
 	float sCoff;
 	float shine;
-}
+};
+
 uniform Material material;
 
 uniform vec3 lightColor = vec3(1.0, 0.0, 1.0);
@@ -46,7 +47,7 @@ float shadowCalc(vec4 vs_fragLightPos)
 	return shadow;
 }
 
-vec3 blinnphong(vec3 normal, vec3 fragPos)
+vec3 blinnphong()
 {
 	vec3 normal = normalize(vs_in.vs_normal);
 	normal = normalize(normal * 2.0 - 1.0);
@@ -76,7 +77,7 @@ void main()
 
 	float shadow = shadowCalc(vs_in.vs_fragLightPos);
 
-	finalColor = ((ambient * material.aCoff) + (1.0 - shadow) * lightColor) * objectColor;
+	vec3 finalColor = ((lightAmbient * material.aCoff) + (1.0 - shadow) * lightColor) * objectColor;
 
 	FragColor = vec4(finalColor, 1.0);
 }
