@@ -2,82 +2,88 @@
 
 out vec4 FragColor;
 
-in Surface
-{
-	vec3 vs_fragWorldPos;
-	vec3 vs_normal;
-	vec2 vs_texcoord;
-	vec4 vs_fragLightPos;
-	mat3 vs_TBN;
-} vs_in;
-
 struct Material
 {
-	float aCoff;
-	float dCoff;
-	float sCoff;
-	float shine;
+	float ambient;
+	float diffuse;
+	float specular;
+	float shininess;
 };
 
+struct Light
+{
+	vec3 color;
+	vec3 position;
+};
+
+in Surface
+{
+	in vec3 vs_normal;
+	in vec3 vs_lightPosition;
+	in vec3 vs_worldPosition;
+	in vec2 vs_texcoord;
+} vs_out;
+
 uniform Material material;
-
-uniform vec3 lightColor = vec3(1.0, 0.0, 1.0);
-uniform vec3 lightPosition = vec3(0.0, -1.0, 0.0);
-uniform vec3 lightAmbient = vec3(1.0);
-
-uniform sampler2D mainTex;
-uniform sampler2D normalMap;
 uniform sampler2D shadowMap;
+uniform vec3 cameraPosition;
+uniform Light light;
+uniform float bias = 0.005;
 
-uniform vec3 cameraPos;
-
-uniform float bias;
-
-float shadowCalc(vec4 vs_fragLightPos)
+float shadowCalculation(vec3 fragPositionLightspace)
 {
 	// Perspective divide
-	vec3 projCoords = vs_fragLightPos.xyz / vs_fragLightPos.xyz;
+	vec3 projCoords = fragPositionLightspace;
 	projCoords = (projCoords * 0.5) + 0.5;
 
-	float closestDepth = texture(shadowMap, projCoords.xy).r;
-	float currentDepth = projCoords.z;
+	float lightDepth = texture(shadowMap, projCoords.xy).r;
+	float cameraDepth = projCoords.z;
 
-	float shadow = (currentDepth - bias > closestDepth) ? 1.0 : 0.0;
+	float shadow = 0.0;
+	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+	for(int x = -1; x <= 1; ++x)
+	{
+		for(int y = -1; y <= 1; ++y)
+	    {
+		    float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+			shadow += cameraDepth - bias > pcfDepth ? 1.0 : 0.0;        
+	    }    
+	}
+
+	shadow /= 9.0;
 
 	return shadow;
 }
 
-vec3 blinnphong()
+vec3 blinnphong(vec3 normal, vec3 fragPos)
 {
-	vec3 normal = normalize(vs_in.vs_normal);
-	normal = normalize(normal * 2.0 - 1.0);
+	// Norms
+	vec3 viewDir = normalize(cameraPosition - fragPos);
+	vec3 lightDir = normalize(light.position - fragPos);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
 
-	vec3 toLight = lightPosition;
-	toLight = -toLight;
+	// Dot products
+	float ndotl = max(dot(normal,lightDir),0.0);
+	float ndoth = max(dot(normal,halfwayDir),0.0);
 
-	float diffuse = max(dot(normal, toLight), 0.0);
-	vec3 diffuseColor = lightColor * diffuse;
+	// Light
+	vec3 diffuse = vec3(ndotl * material.diffuse);
+	vec3 specular =  vec3(pow(ndoth, material.shininess) * material.specular);
 
-	vec3 toCam = normalize(toLight - vs_in.vs_fragWorldPos);
-
-	vec3 lightCamNormal = normalize(toLight + toCam);
-
-	float specular = pow(max(dot(normal, lightCamNormal), 0.0), material.shine);
-
-	vec3 lightColor = (material.dCoff * diffuseColor + material.sCoff * specular) * lightColor;
-
-	return lightColor;
+	return (diffuse + specular);
 }
 
 void main()
 {
-	vec3 lightColor = blinnphong();
+	vec3 normal = normalize(vs_out.vs_normal);
+	float shadow = shadowCalculation(vs_out.vs_lightPosition);
 
-	vec3 objectColor = texture(mainTex, vs_in.vs_texcoord).rbg;
+	vec3 lighting = blinnphong(normal, vs_out.vs_worldPosition);
+	lighting *= (1.0 - shadow);
+	lighting *= light.color;
+	lighting += vec3(1.0) * material.ambient;
 
-	float shadow = shadowCalc(vs_in.vs_fragLightPos);
+	vec3 objectColor = normal * 0.5 + 0.5;
 
-	vec3 finalColor = ((lightAmbient * material.aCoff) + (1.0 - shadow) * lightColor) * objectColor;
-
-	FragColor = vec4(finalColor, 1.0);
+	FragColor = vec4(objectColor * lighting,1.0);
 }

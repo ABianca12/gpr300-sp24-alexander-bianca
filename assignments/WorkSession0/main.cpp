@@ -188,7 +188,7 @@ void drawUI() {
 
 	ImGui::End();
 
-	ImGui::Render();
+	ImGui::render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 

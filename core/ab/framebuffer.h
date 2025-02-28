@@ -10,6 +10,7 @@ namespace ab
 		GLuint fbo;
 		GLuint colorBuffer[8];
 		GLuint depthBuffer;
+		GLuint depth;
 		unsigned int width;
 		unsigned int height;
 	};
