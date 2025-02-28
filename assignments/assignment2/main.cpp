@@ -41,18 +41,17 @@ ew::Mesh plane;
 #include <ab/framebuffer.h>
 ab::Framebuffer framebuffer;
 
+GLuint texture;
+GLuint normalMap;
+
 static glm::vec4 lightOrbitRadius = { 2.0f, 2.0f, -2.0f, 1.0f };
 
 struct Material
 {
-	// Ambient coefficent 0-1
 	float aCoff = 1.0;
-	// Diffuse coefficent 0-1
 	float dCoff = 0.5;
-	// Specular coefficent 0-1
 	float sCoff = 0.5;
-	// Size of specular highlight
-	float shine = 125;
+	float shine = 128;
 } material;
 
 struct Light
@@ -111,28 +110,27 @@ void render(ew::Shader shader, ew::Shader shadowPass, glm::mat4 material, ew::Me
 	float nearPlane = 1.0f, farPlane = 7.5f;
 
 	glm::mat4 lightProj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, nearPlane, farPlane);
-	glm::mat4 lightView = glm::lookAt(light.position, glm::vec3(0.0f), glm::vec3(0.0, 1.0f, 0.0f));
+	glm::mat4 lightView = glm::lookAt(light.position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 lightSpaceMatrix = lightProj * lightView;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 	{
 		glViewport(0, 0, shadowWidth, shadowHeight);
 
+		glCullFace(GL_FRONT);
 		glEnable(GL_DEPTH_TEST);
-		
-		glClear(GL_DEPTH_BUFFER_BIT);
 
 		shadowPass.use();
-
-		shadowPass.setMat4("model", glm::mat4(1.0f));
+		shadowPass.setMat4("model", modelTransform.modelMatrix());
 		shadowPass.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
-		// draw
+		model.draw();
 	}
 
+	glCullFace(GL_BACK);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	//glViewport(0, 0, screenWidth, screenHeight);
+	glViewport(0, 0, screenWidth, screenHeight);
 
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
@@ -140,13 +138,17 @@ void render(ew::Shader shader, ew::Shader shadowPass, glm::mat4 material, ew::Me
 	glEnable(GL_DEPTH_TEST); // Depth testing
 
 	// 2. gfx pass, a pass is what is going onto the screen
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
-
-	shader.use();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, normalMap);
+
+	shader.use();
+
 	shader.setInt("shadowMap", 0);
 
 	//shader.setMat4("model", glm::mat4(1.0f));
