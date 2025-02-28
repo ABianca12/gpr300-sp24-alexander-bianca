@@ -2,76 +2,81 @@
 
 out vec4 FragColor;
 
-//uniforms
-uniform vec3 cameraPos;
-uniform vec3 lightPos;
-uniform vec3 lightColor;
-uniform sampler2D shadowMap;
-
-in vec3 vsFragWorldPos;
-in vec3 vs_normal;
-in vec2 vs_texcoord;
-in vec4 vsFragLightPos;
+in Surface
+{
+	vec3 vs_fragWorldPos;
+	vec3 vs_normal;
+	vec2 vs_texcoord;
+	vec4 vs_fragLightPos;
+	mat3 vs_TBN;
+} vs_in;
 
 struct Material
 {
-	// Ambient coefficent 0-1
-	vec3 aCoff;
-	// Diffuse coefficent 0-1
-	vec3 dCoff;
-	// Specular coefficent 0-1
-	vec3 sCoff;
-	// Size of specular highlight
+	float aCoff;
+	float dCoff;
+	float sCoff;
 	float shine;
-} material;
+}
+uniform Material material;
 
-struct Light
-{
-	vec3 color;
-	vec3 position;
-} light;
+uniform vec3 lightColor = vec3(1.0, 0.0, 1.0);
+uniform vec3 lightPosition = vec3(0.0, -1.0, 0.0);
+uniform vec3 lightAmbient = vec3(1.0);
 
-float shadowCalc(vec4 vsFragPosLight)
+uniform sampler2D mainTex;
+uniform sampler2D normalMap;
+uniform sampler2D shadowMap;
+
+uniform vec3 cameraPos;
+
+uniform float bias;
+
+float shadowCalc(vec4 vs_fragLightPos)
 {
 	// Perspective divide
-	vec3 projCoords = vsFragPosLight.xyz / vsFragPosLight.xyz;
+	vec3 projCoords = vs_fragLightPos.xyz / vs_fragLightPos.xyz;
 	projCoords = (projCoords * 0.5) + 0.5;
 
 	float closestDepth = texture(shadowMap, projCoords.xy).r;
 	float currentDepth = projCoords.z;
 
-	float shadow = (currentDepth > closestDepth) ? 1.0 : 0.0;
+	float shadow = (currentDepth - bias > closestDepth) ? 1.0 : 0.0;
 
 	return shadow;
 }
 
 vec3 blinnphong(vec3 normal, vec3 fragPos)
 {
-	// Normalize inputs
-	vec3 viewDirection = normalize(cameraPos - fragPos);
-	vec3 lightDirection = normalize(lightPos - fragPos);
-	vec3 halfDirection = normalize(lightDirection + viewDirection);
+	vec3 normal = normalize(vs_in.vs_normal);
+	normal = normalize(normal * 2.0 - 1.0);
 
-	// Dot products
-	float ndot1 = max(dot(normal, lightDirection), 0.0);
-	float ndoth = max(dot(normal, halfDirection), 0.0);
+	vec3 toLight = lightPosition;
+	toLight = -toLight;
 
-	vec3 diffuse = ndot1 * material.dCoff;
-	vec3 specular = pow(ndoth, material.shine * 128.0) * material.sCoff;
+	float diffuse = max(dot(normal, toLight), 0.0);
+	vec3 diffuseColor = lightColor * diffuse;
 
-	return (diffuse + specular);
+	vec3 toCam = normalize(toLight - vs_in.vs_fragWorldPos);
+
+	vec3 lightCamNormal = normalize(toLight + toCam);
+
+	float specular = pow(max(dot(normal, lightCamNormal), 0.0), material.shine);
+
+	vec3 lightColor = (material.dCoff * diffuseColor + material.sCoff * specular) * lightColor;
+
+	return lightColor;
 }
 
 void main()
 {
-	vec3 normal = normalize(vs_normal);
-	float shadow = shadowCalc(vsFragLightPos);
-	vec3 lighting = blinnphong(normal, vsFragWorldPos);
-	lighting *= (1.0 - shadow);
-	lighting *= vec3(1.0) * material.aCoff;
-	lighting *= light.color;
+	vec3 lightColor = blinnphong();
 
-	vec3 objectColor = texture(shadowMap, vs_texcoord).rbg;
+	vec3 objectColor = texture(mainTex, vs_in.vs_texcoord).rbg;
 
-	FragColor = vec4(objectColor, 1.0);
+	float shadow = shadowCalc(vs_in.vs_fragLightPos);
+
+	finalColor = ((ambient * material.aCoff) + (1.0 - shadow) * lightColor) * objectColor;
+
+	FragColor = vec4(finalColor, 1.0);
 }

@@ -31,12 +31,15 @@ ew::Camera camera;
 ew::CameraController camControl;
 
 #include <ew/transform.h>
-ew::Transform suzanneTransform;
+ew::Transform modelTransform;
 
 #include <ew/texture.h>
 
 #include <ew/procGen.h>
 ew::Mesh plane;
+
+#include <ab/framebuffer.h>
+ab::Framebuffer framebuffer;
 
 static glm::vec4 lightOrbitRadius = { 2.0f, 2.0f, -2.0f, 1.0f };
 
@@ -54,8 +57,9 @@ struct Material
 
 struct Light
 {
-	glm::vec3 color;
-	glm::vec3 position;
+	glm::vec3 color = glm::vec3(1.0);
+	glm::vec3 position = glm::vec3(0.0, -1.0, 0.0);
+	float bias = 0.01;
 } light;
 
 struct DepthBuffer
@@ -100,7 +104,7 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 }
 
 // render loop
-void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model model, GLuint texture, GLint normalMap, GLFWwindow* window, float deltaTime)
+void render(ew::Shader shader, ew::Shader shadowPass, glm::mat4 material, ew::Mesh plane, ew::Model model, GLFWwindow* window, float deltaTime)
 {
 	const auto viewProj = camera.projectionMatrix() * camera.viewMatrix();
 
@@ -110,10 +114,10 @@ void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model 
 	glm::mat4 lightView = glm::lookAt(light.position, glm::vec3(0.0f), glm::vec3(0.0, 1.0f, 0.0f));
 	glm::mat4 lightSpaceMatrix = lightProj * lightView;
 
-	//glViewport(0, 0, shadowWidth, shadowHeight);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 	{
+		glViewport(0, 0, shadowWidth, shadowHeight);
+
 		glEnable(GL_DEPTH_TEST);
 		
 		glClear(GL_DEPTH_BUFFER_BIT);
@@ -146,7 +150,7 @@ void qwerty(ew::Shader shader, ew::Shader shadowPass, ew::Mesh plane, ew::Model 
 	shader.setInt("shadowMap", 0);
 
 	//shader.setMat4("model", glm::mat4(1.0f));
-	shader.setMat4("transform_model", suzanneTransform.modelMatrix());
+	shader.setMat4("transform_model", modelTransform.modelMatrix());
 	shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 	shader.setMat4("camera_viewproj", viewProj);
 
@@ -192,10 +196,10 @@ int main() {
 
 		camControl.move(window, &camera, deltaTime);
 
-		suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
+		modelTransform.rotation = glm::rotate(modelTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
 		// This is our main render
-		qwerty(blinnShader, shadowPass, plane, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
+		render(blinnShader, shadowPass, plane, suzanne, pavingTexture, pavingNormalMap, window, deltaTime);
 
 		drawUI();
 
