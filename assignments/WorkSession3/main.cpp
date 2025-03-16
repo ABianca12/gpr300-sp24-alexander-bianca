@@ -245,6 +245,30 @@ void renderer(ew::Shader shader, ew::Shader geoShader, ew::Shader shaderPassShad
 		}
 	}
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindVertexArray(fullscreenQuad.vao);
+
+	// GFX Pass
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.color);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.lighting);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.light);
+
+	geoShader.use();
+	geoShader.setInt("albedo", 0);
+	geoShader.setInt("lightingTex", 1);
+	geoShader.setInt("light", 2);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
 }
 
 int main() {
