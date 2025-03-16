@@ -39,70 +39,89 @@ ew::Transform suzanneTransform;
 struct Framebuffer
 {
 	GLuint fbo;
-	GLuint colorBuffer[8];
-	GLuint depthBuffer;
+	GLuint color;
 	GLuint depth;
-	unsigned int width;
-	unsigned int height;
+	GLuint light;
+	GLuint lighting;
+	GLuint position;
+	GLuint normal;
 
 	void init()
 	{
-		width = screenWidth;
-		height = screenHeight;
-
-		// Initalize framebuffers
+		//Bind framebuffer
 		glGenFramebuffers(1, &fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-		// Color attachment
-		glGenTextures(1, &colorBuffer[0]);
-		glBindTexture(GL_TEXTURE_2D, colorBuffer[0]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+		//Create color0 texture attachment
+		glGenTextures(1, &color);
+		glBindTexture(GL_TEXTURE_2D, color);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		// Attaching Buffers
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer[0], 0);
+		//Bind color0 attachment
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
 
-		// Color attachment
-		glGenTextures(1, &colorBuffer[1]);
-		glBindTexture(GL_TEXTURE_2D, colorBuffer[1]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+		//Create color1 texture attachment
+		glGenTextures(1, &position);
+		glBindTexture(GL_TEXTURE_2D, position);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, colorBuffer[1], 0);
+		//Bind color1 attachment
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, position, 0);
 
-		// Color attachment
-		glGenTextures(1, &colorBuffer[2]);
-		glBindTexture(GL_TEXTURE_2D, colorBuffer[2]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+		//Create color1 texture attachment
+		glGenTextures(1, &normal);
+		glBindTexture(GL_TEXTURE_2D, normal);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, colorBuffer[2], 0);
+		//Bind color1 attachment
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, normal, 0);
 
-		GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		//Create lighting texture attachment
+		glGenTextures(1, &lighting);
+		glBindTexture(GL_TEXTURE_2D, lighting);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glDrawBuffers(3, attachments);
+		//Bind lighting attachment
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, lighting, 0);
 
-		// Depth attachment
-		glGenRenderbuffers(1, &depthBuffer);
-		glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		//Create lighting texture attachment
+		glGenTextures(1, &light);
+		glBindTexture(GL_TEXTURE_2D, light);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		//Bind lighting attachment
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, light, 0);
+
+		//Configure drawing to multiple buffers
+		GLuint arr[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
+		glDrawBuffers(5, arr);
+
+		//Create depth texture attachment
+		glGenTextures(1, &depth);
+		glBindTexture(GL_TEXTURE_2D, depth);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-		// Bind framebuffer
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthBuffer, 0);
+		//Bind depth texture attachment
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 
-		// Check completeness
+		//Check if frame buffer was created
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			printf("Buffer not complete!");
+			printf("Failed to bind framebuffer");
 		}
 
-		// Unbinding framebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	
@@ -158,12 +177,12 @@ void renderer(ew::Shader shader, ew::Model model, GLFWwindow* window, float delt
 	//glBindTexture(GL_TEXTURE_2D, normal);
 
 	shader.use();
-	shader.setMat4("transform_model", glm::mat4(1.0f));
+	shader.setMat4("model", glm::mat4(1.0f));
 	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-	shader.setVec3("eyePosition", camera.position);
-	shader.setInt("gAlbedo", 0);
-	shader.setInt("gPos", 1);
-	shader.setInt("gNormal", 2);
+	shader.setVec3("eyePos", camera.position);
+	shader.setInt("fragColor0", 0);
+	shader.setInt("fragColor1", 1);
+	shader.setInt("fragColor2", 2);
 
 	suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
@@ -173,7 +192,7 @@ void renderer(ew::Shader shader, ew::Model model, GLFWwindow* window, float delt
 	{
 		for (int j = 0; j < 4; j++)
 		{
-			shader.setMat4("transform_model", glm::translate(glm::vec3(i * 4.0f, 0.0f, j + 2)));
+			shader.setMat4("model", glm::translate(glm::vec3(i * 4.0f, 0.0f, j + 2)));
 			model.draw();
 		}
 	}
@@ -242,7 +261,7 @@ void drawUI() {
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Image((ImTextureID)(intptr_t)framebuffer.colorBuffer[0], ImVec2(800, 600));
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.color, ImVec2(800, 600));
 
 	ImGui::Begin("Settings");
 
