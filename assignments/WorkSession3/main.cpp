@@ -146,6 +146,14 @@ static float quadVertices[] =
 
 };
 
+struct Material
+{
+	float ambientCoff = 0.5;
+	float diffuseCoff = 0.5;
+	float specularCoff = 0.5;
+	float shine = 128.0;
+} material;
+
 void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 {
 	camera->position = glm::vec3(0, 0, 5.0f);
@@ -154,60 +162,99 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 }
 
 // render loop
-void renderer(ew::Shader shader, ew::Model model, GLFWwindow* window, float deltaTime)
+void renderer(ew::Shader shader, ew::Shader geoShader, ew::Shader shaderPassShader, ew::Shader lightVisibilityShader, ew::Model model, GLuint texture, GLuint normalMap, GLFWwindow* window, float deltaTime)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
-
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK); // Backface culling
+	glClear(GL_COLOR_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST); // Depth testing
+	glDepthFunc(GL_LESS);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
 	// 2. gfx pass, a pass is what is going onto the screen
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.6f, 0.8f, 0.92f, 1.0f);
 
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, albedo);
-
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, position);
-
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, normal);
-
-	shader.use();
-	shader.setMat4("model", glm::mat4(1.0f));
-	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-	shader.setVec3("eyePos", camera.position);
-	shader.setInt("fragColor0", 0);
-	shader.setInt("fragColor1", 1);
-	shader.setInt("fragColor2", 2);
-
-	suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
-
-	camControl.move(window, &camera, deltaTime);
-
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 3; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (int j = 0; j < 3; j++)
 		{
-			shader.setMat4("model", glm::translate(glm::vec3(i * 4.0f, 0.0f, j + 2)));
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture);
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, normalMap);
+
+			shader.use();
+			
+			shader.setMat4("model", glm::mat4(1.0f));
+			shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
+			shader.setInt("_MainTex", 0);
+			suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
+			
 			model.draw();
 		}
 	}
 
-	model.draw();
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			glEnable(GL_DEPTH_TEST);
+
+			glm::vec3 lightColor = glm::vec3(1.0, 1.0, 1.0);
+
+			lightVisibilityShader.use();
+			lightVisibilityShader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
+			lightVisibilityShader.setMat4("model", glm::translate(glm::vec3(i * 2.0, 5, j * 2.0)));
+			lightVisibilityShader.setVec3("color", lightColor);
+
+			glBindVertexArray(fullscreenQuad.vao);
+			glDisable(GL_DEPTH_TEST);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, framebuffer.color);
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, framebuffer.position);
+
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, framebuffer.normal);
+
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, framebuffer.lighting);
+
+			shaderPassShader.use();
+			shaderPassShader.setInt("texturePos", 1);
+			shaderPassShader.setInt("textureNormal", 2);
+			shaderPassShader.setInt("oldShaderPass", 3);
+			shaderPassShader.setVec3("camPos", camera.position);
+			shaderPassShader.setVec3("light.color", lightColor);
+			shaderPassShader.setVec3("light.pos", glm::vec3(i * 2.0, 5, j * 2.0));
+
+			shaderPassShader.setFloat("material.ambientCoff", material.ambientCoff);
+			shaderPassShader.setFloat("material.diffuseCoff", material.diffuseCoff);
+			shaderPassShader.setFloat("material.specularCoff", material.specularCoff);
+			shaderPassShader.setFloat("material.shine", material.shine);
+
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
+	}
+
 }
 
 int main() {
 	GLFWwindow* window = initWindow("Work Session 3", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-	ew::Shader lit_shader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	ew::Shader litShader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader geoShader = ew::Shader("assets/geometry.vert", "assets/geometry.frag");
+	ew::Shader shaderPassShader = ew::Shader("assets/shaderPass.vert", "assets/shaderPass.frag");
+	ew::Shader lightVisibilityShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -215,6 +262,12 @@ int main() {
 	camera.target = glm::vec3( 0.0f, 0.0f, 0.0f );
 	camera.aspectRatio = (float)screenWidth / screenHeight;
 	camera.fov = 60.0f;
+	camera.farPlane = 1000;
+
+	GLuint texture = ew::loadTexture("assets/stone_wall_04_diff_4k.jpg");
+	GLuint normalMap = ew::loadTexture("assets/stone_wall_04_nor_gl_4k.jpg");
+
+	framebuffer.init();
 
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
@@ -231,9 +284,8 @@ int main() {
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(1); // texcoords
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(sizeof(float) * 2));
-	glBindVertexArray(0);
 
-	framebuffer.init();
+	glBindVertexArray(0);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -247,7 +299,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// This is our main render
-		renderer(geoShader, suzanne, window, deltaTime);
+		camControl.move(window, &camera, deltaTime);
+		renderer(litShader, geoShader, shaderPassShader, lightVisibilityShader, suzanne, texture, normalMap, window, deltaTime);
 
 		drawUI();
 
