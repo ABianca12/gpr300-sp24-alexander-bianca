@@ -126,7 +126,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// This is our main render
-		qwerty(lit_shader, suzzane, plane, waterSpec, watertex, waterWarp, window, deltaTime);
+		qwerty(lit_shader, suzanne, plane, waterSpec, watertex, waterWarp, window, deltaTime);
 
 		drawUI();
 
