@@ -14,8 +14,6 @@ in Surface
 }vs_surface;
 
 uniform sampler2D mainTex;
-uniform sampler2D normalMap;
-uniform vec3 eyePos;
 
 void main()
 {

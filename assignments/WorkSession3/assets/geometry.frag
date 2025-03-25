@@ -1,21 +1,19 @@
 #version 450
 
+layout (location= 0) out vec2 in_position;
+layout (location= 1) out vec2 in_texcoord;
+
 out vec4 FragColor;
 
 in vec2 vs_texcoord;
 
 uniform sampler2D albedo;
-uniform sampler2D lightingTex;
-uniform sampler2D light;
+uniform sampler2D lighting;
 
 void main()
 {
 	vec3 color = texture(albedo, vs_texcoord).rgb;
-	vec3 lightColor = texture(lightingTex, vs_texcoord).rgb;
-	vec4 lighting = texture(light, vs_texcoord).rgba;
+	vec3 light = texture(lighting, vs_texcoord).rgb;
 
-	vec3 completeLighting = lightColor * color;
-	completeLighting = mix(completeLighting, lighting.rgb, lighting.a);
-
-	FragColor = vec4(completeLighting, 1.0);
+	FragColor = vec4(color * light, 1.0);
 }

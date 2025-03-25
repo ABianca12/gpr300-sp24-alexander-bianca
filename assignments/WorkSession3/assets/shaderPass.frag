@@ -6,14 +6,18 @@ in vec2 vs_texcoord;
 
 uniform sampler2D texturePos;
 uniform sampler2D textureNormal;
-uniform sampler2D oldShaderPass;
+//uniform sampler2D oldShaderPass;
 uniform vec3 camPos;
 
-struct sLight
+struct PointLight
 {
 	vec3 color;
 	vec3 pos;
+	float radius;
 } light;
+
+#define maxLights 128
+uniform PointLight pointLights[maxLights];
 
 struct Material 
 {
@@ -37,17 +41,39 @@ vec3 blinnPhong(vec3 normal, vec3 fragPos, vec3 lightDir)
 	return (diffuse + specular);
 }
 
+float attenuateExponential(float distance, float radius){
+	float i = clamp(1.0 - pow(distance/radius,4.0),0.0,1.0);
+	return i * i;
+	
+}
+
+vec3 calcPointLight(PointLight light, vec3 normal, vec3 pos){
+	vec3 diff = light.pos - pos;
+	//Direction toward light position
+	vec3 toLight = normalize(diff);
+	//TODO: Usual blinn-phong calculations for diffuse + specular
+	vec3 lightColor = blinnPhong(normal, pos, toLight) * light.color;
+	//Attenuation
+	float d = length(diff); //Distance to light
+	lightColor *= attenuateExponential(d, light.radius); //See below for attenuation options
+	return lightColor;
+}
+
 void main()
 {
 	vec3 posColor = texture(texturePos, vs_texcoord).xyz;
 	vec3 normalColor = texture(textureNormal, vs_texcoord).xyz;
-	vec3 oldShaderPassColor = texture(oldShaderPass, vs_texcoord).xyz;
+	vec3 totalLight = vec3(0);
 
+//	//vec3 oldShaderPassColor = texture(oldShaderPass, vs_texcoord).xyz;
+//
 	vec3 lightDir = normalize(light.pos - posColor);
+//
+//	vec3 blinnPhongLighting = blinnPhong(normalColor, posColor, lightDir);
 
-	vec3 blinnPhongLighting = blinnPhong(normalColor, posColor, lightDir);
+	//totalLight += lightDir
 
-	vec3 completeLighting = light.color * (material.ambientCoff + blinnPhongLighting);
+	//vec3 completeLighting = light.color * (material.ambientCoff + blinnPhongLighting);
 
-	fragColor3 = vec4(completeLighting + oldShaderPassColor, 1.0);
+	//fragColor3 = vec4(completeLighting + oldShaderPassColor, 1.0);
 }

@@ -95,19 +95,9 @@ struct Framebuffer
 		// Bind lighting attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, lighting, 0);
 
-		// Create lighting texture attachment
-		glGenTextures(1, &light);
-		glBindTexture(GL_TEXTURE_2D, light);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		// Bind lighting attachment
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, light, 0);
-
-		// Configure drawing to multiple buffers
-		GLuint arr[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
-		glDrawBuffers(5, arr);
+		// Configure drawing to multiple buffers (albedo, position, normal, light)
+		GLuint arr[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+		glDrawBuffers(4, arr);
 
 		// Create depth texture attachment
 		glGenTextures(1, &depth);
@@ -156,6 +146,16 @@ struct Material
 	float shine = 128.0;
 } material;
 
+struct PointLight
+{
+	glm::vec3 position;
+	float radius;
+	glm::vec4 color;
+} pointLight;
+
+const int maxLights = 128;
+PointLight pointLights[maxLights];
+
 void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 {
 	camera->position = glm::vec3(0, 0, 5.0f);
@@ -163,23 +163,13 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 	camControl->yaw = camControl->pitch = 0;
 }
 
-void renderDiffered(ew::Shader geoShader, ew::Model suzanne, GLuint texture, GLuint normalMap, GLFWwindow* window, float deltaTime)
+void renderGeometry(ew::Shader shader, ew::Model suzanne, GLuint texture, GLuint normalMap, float deltaTime)
 {
-	geoShader.use();
-	geoShader.setInt("albedo", 0);
-	geoShader.setInt("lightingTex", 1);
-	geoShader.setInt("light", 2);
-	
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
-}
+	shader.use();
+	shader.setInt("mainTex", 0);
+	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
 
-void renderLighting(ew::Shader litShader, ew::Model suzanne, GLuint texture, GLuint normalMap, GLFWwindow* window, float deltaTime)
-{
-	litShader.use();
-
-	litShader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-	litShader.setInt("mainTex", 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
 	// 1. pipeline defenition
 	glEnable(GL_CULL_FACE);
@@ -203,7 +193,7 @@ void renderLighting(ew::Shader litShader, ew::Model suzanne, GLuint texture, GLu
 			glBindTexture(GL_TEXTURE_2D, normalMap);
 
 			suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
-			litShader.setMat4("model", glm::translate(glm::vec3(i * 2.0, 0, j * 2.0)));
+			shader.setMat4("model", glm::translate(glm::vec3(i * 2.0, 0, j * 2.0)));
 
 			suzanne.draw();
 		}
@@ -211,126 +201,72 @@ void renderLighting(ew::Shader litShader, ew::Model suzanne, GLuint texture, GLu
 	// color, normals, position
 	// draw spheres
 	// Geo shader with color normal and postion combined with blinnphong rendered over it
+	
+	//shaderPassShader.use();
+	//shaderPassShader.setInt("texturePos", 1);
+	//shaderPassShader.setInt("textureNormal", 2);
+	//shaderPassShader.setInt("oldShaderPass", 3);
+	//shaderPassShader.setVec3("camPos", camera.position);
+	//shaderPassShader.setVec3("light.pos", glm::vec3(2.0, 5, 2.0));
+	//sphere.draw();
 
+	//shaderPassShader.setFloat("material.ambientCoff", material.ambientCoff);
+	//shaderPassShader.setFloat("material.diffuseCoff", material.diffuseCoff);
+	//shaderPassShader.setFloat("material.specularCoff", material.specularCoff);
+	//shaderPassShader.setFloat("material.shine", material.shine);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-// render loop
-//void renderer(ew::Shader shader, ew::Shader geoShader, ew::Shader shaderPassShader, ew::Shader lightVisibilityShader, ew::Model model, GLuint texture, GLuint normalMap, GLFWwindow* window, float deltaTime)
-//{
-//	// 1. pipeline defenition
-//	glEnable(GL_CULL_FACE);
-//	glCullFace(GL_BACK); // Backface culling
-//	glClear(GL_COLOR_BUFFER_BIT);
-//	glEnable(GL_DEPTH_TEST); // Depth testing
-//	glDepthFunc(GL_LESS);
-//
-//	//for (int i = 0; i < 3; i++)
-//	//{
-//	//	for (int j = 0; j < 3; j++)
-//	//	{
-//	//		glActiveTexture(GL_TEXTURE0);
-//	//		glBindTexture(GL_TEXTURE_2D, texture);
-//
-//	//		glActiveTexture(GL_TEXTURE1);
-//	//		glBindTexture(GL_TEXTURE_2D, normalMap);
-//
-//	//		shader.use();
-//	//		
-//	//		shader.setMat4("model", glm::mat4(1.0f));
-//	//		shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-//	//		shader.setInt("mainTex", 0);
-//	//		suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
-//	//		
-//	//		model.draw();
-//	//	}
-//	//}
-//
-//	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
-//
-//	// 2. gfx pass, a pass is what is going onto the screen
-//	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//
-//	shader.use();
-//
-//	shader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-//	shader.setInt("mainTex", 0);
-//
-//	for (int i = 0; i < 3; i++)
-//	{
-//		for (int j = 0; j < 3; j++)
-//		{
-//			glActiveTexture(GL_TEXTURE0);
-//			glBindTexture(GL_TEXTURE_2D, texture);
-//
-//			glActiveTexture(GL_TEXTURE1);
-//			glBindTexture(GL_TEXTURE_2D, normalMap);
-//
-//			suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
-//			shader.setMat4("model", glm::mat4(1.0f));
-//
-//			model.draw();
-//
-//			//glEnable(GL_DEPTH_TEST);
-//
-//			//glm::vec3 lightColor = glm::vec3(1.0, 5.0, 1.0);
-//
-//			//lightVisibilityShader.use();
-//			//lightVisibilityShader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-//			//lightVisibilityShader.setMat4("model", glm::translate(glm::vec3(i * 2.0, 5, j * 2.0)));
-//			//lightVisibilityShader.setVec3("color", lightColor);
-//
-//			//model.draw();
-//
-//			//glBindVertexArray(fullscreenQuad.vao);
-//			//glDisable(GL_DEPTH_TEST);
-//
-//			//glActiveTexture(GL_TEXTURE0);
-//			//glBindTexture(GL_TEXTURE_2D, framebuffer.color);
-//
-//			//glActiveTexture(GL_TEXTURE1);
-//			//glBindTexture(GL_TEXTURE_2D, framebuffer.position);
-//
-//			//glActiveTexture(GL_TEXTURE2);
-//			//glBindTexture(GL_TEXTURE_2D, framebuffer.normal);
-//
-//			//glActiveTexture(GL_TEXTURE3);
-//			//glBindTexture(GL_TEXTURE_2D, framebuffer.lighting);
-//
-//			//shaderPassShader.use();
-//			//shaderPassShader.setInt("texturePos", 1);
-//			//shaderPassShader.setInt("textureNormal", 2);
-//			//shaderPassShader.setInt("oldShaderPass", 3);
-//			//shaderPassShader.setVec3("camPos", camera.position);
-//			//shaderPassShader.setVec3("light.color", lightColor);
-//			//shaderPassShader.setVec3("light.pos", glm::vec3(i * 2.0, 5, j * 2.0));
-//
-//			//shaderPassShader.setFloat("material.ambientCoff", material.ambientCoff);
-//			//shaderPassShader.setFloat("material.diffuseCoff", material.diffuseCoff);
-//			//shaderPassShader.setFloat("material.specularCoff", material.specularCoff);
-//			//shaderPassShader.setFloat("material.shine", material.shine);
-//
-//			//glDrawArrays(GL_TRIANGLES, 0, 6);
-//		}
-//	}
-//
-//	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//	glBindVertexArray(fullscreenQuad.vao);
-//
-//	// GFX Pass
-//	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-//	glClear(GL_COLOR_BUFFER_BIT);
-//	glDisable(GL_DEPTH_TEST);
-//
-//	glActiveTexture(GL_TEXTURE0);
-//	glBindTexture(GL_TEXTURE_2D, framebuffer.color);
-//
-//	glActiveTexture(GL_TEXTURE1);
-//	glBindTexture(GL_TEXTURE_2D, framebuffer.lighting);
-//
-//	glActiveTexture(GL_TEXTURE2);
-//	glBindTexture(GL_TEXTURE_2D, framebuffer.light);
-//}
+void renderLightVolumes(ew::Shader shader, ew::Mesh sphere)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+
+	// 1. pipeline defenition
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK); // Backface culling
+	glClear(GL_COLOR_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST); // Depth testing
+	glDepthFunc(GL_LESS);
+
+	// 2. gfx pass, a pass is what is going onto the screen
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.normal);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.position);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.color);
+
+	shader.use();
+
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			shader.use();
+			shader.setInt("texturePos", 1);
+			shader.setInt("textureNormal", 2);
+			shader.setInt("oldShaderPass", 3);
+			shader.setVec3("camPos", camera.position);
+			shader.setInt("light.color", 2);
+			shader.setMat4("light.position", glm::translate(glm::vec3(i * 2.0, 0, j * 2.0)));
+
+			shader.setFloat("material.ambientCoff", material.ambientCoff);
+			shader.setFloat("material.diffuseCoff", material.diffuseCoff);
+			shader.setFloat("material.specularCoff", material.specularCoff);
+			shader.setFloat("material.shine", material.shine);
+
+			sphere.draw();
+		}
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
 int main() {
 	GLFWwindow* window = initWindow("Work Session 3", screenWidth, screenHeight);
@@ -341,6 +277,8 @@ int main() {
 	ew::Shader shaderPassShader = ew::Shader("assets/shaderPass.vert", "assets/shaderPass.frag");
 	ew::Shader lightVisibilityShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
+
+	sphere.load(ew::createSphere(pointLight.radius, 10));
 
 	// Initalize camera
 	camera.position = glm::vec3( 0.0f, 0.0f, 5.0f);
@@ -387,8 +325,8 @@ int main() {
 
 		// This is our main render
 		camControl.move(window, &camera, deltaTime);
-		renderDiffered(geoShader, suzanne, texture, normalMap, window, deltaTime);
-		renderLighting(litShader, suzanne, texture, normalMap, window, deltaTime); // color, position, normal
+		renderGeometry(litShader, suzanne, texture, normalMap, deltaTime); // color, position, normal
+		renderLightVolumes(shaderPassShader, sphere);
 
 		// render to fullscreen quad:
 		glBindVertexArray(fullscreenQuad.vao);
@@ -403,27 +341,18 @@ int main() {
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, framebuffer.normal);
 
-		shaderPassShader.use();
-		shaderPassShader.setInt("texturePos", 1);
-		shaderPassShader.setInt("textureNormal", 2);
-		shaderPassShader.setInt("oldShaderPass", 3);
-		shaderPassShader.setVec3("camPos", camera.position);
-		shaderPassShader.setVec3("light.pos", glm::vec3(/*i * */ 2.0, 5, /*j * */ 2.0));
-		//sphere.draw();
+		geoShader.use();
+		geoShader.setInt("albedo", 0);
+		geoShader.setInt("lightingTex", 1);
+		geoShader.setInt("light", 2);
 
-		shaderPassShader.setFloat("material.ambientCoff", material.ambientCoff);
-		shaderPassShader.setFloat("material.diffuseCoff", material.diffuseCoff);
-		shaderPassShader.setFloat("material.specularCoff", material.specularCoff);
-		shaderPassShader.setFloat("material.shine", material.shine);
-
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 
 		// forward render light spheres:
-		//lightVisibilityShader.use();
-		//lightVisibilityShader.setMat4("camera_viewproj", camera.projectionMatrix() * camera.viewMatrix());
-		//lightVisibilityShader.setMat4("model", glm::translate(glm::vec3(i * 2.0, 5, j * 2.0)));
-		//lightVisibilityShader.setVec3("color", lightColor);
+		// TODO:
+
+
 
 		drawUI();
 
@@ -441,6 +370,7 @@ void drawUI() {
 	ImGui::Image((ImTextureID)(intptr_t)framebuffer.light, ImVec2(800, 600));
 	ImGui::Image((ImTextureID)(intptr_t)framebuffer.depth, ImVec2(800, 600));
 	ImGui::Image((ImTextureID)(intptr_t)framebuffer.normal, ImVec2(800, 600));
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.position, ImVec2(800, 600));
 
 	ImGui::Begin("Settings");
 
