@@ -47,7 +47,7 @@ float deltaTime;
 
 struct Material
 {
-	float aCoff = 1.0;
+	float aCoff = 0.5;
 	float dCoff = 0.5;
 	float sCoff = 0.5;
 	float shine = 128;
@@ -130,7 +130,7 @@ void render(ew::Shader& shader, ew::Shader& shadowPass, ew::Model& model, ew::Me
 
 	model.draw();
 
-	shader.setMat4("model", glm::translate(glm::vec3(0.0, -2.0, 0.0)));
+	shader.setMat4("model", glm::translate(glm::vec3(0.0, -5.0, 0.0)));
 
 	plane.draw();
 
@@ -204,9 +204,9 @@ void drawUI() {
 
 	if (ImGui::CollapsingHeader("Directional Light"))
 	{
-		ImGui::SliderFloat("Light X", &light.lightX, -10.0f, 10.0f);
-		ImGui::SliderFloat("Light Y", &light.lightY, -10.0f, 10.0f);
-		ImGui::SliderFloat("Light Z", &light.lightZ, -10.0f, 10.0f);
+		ImGui::SliderFloat("Light X", &light.lightX, -20.0f, 20.0f);
+		ImGui::SliderFloat("Light Y", &light.lightY, -20.0f, 20.0f);
+		ImGui::SliderFloat("Light Z", &light.lightZ, -20.0f, 20.0f);
 
 		if (ImGui::CollapsingHeader("Light Color"))
 		{

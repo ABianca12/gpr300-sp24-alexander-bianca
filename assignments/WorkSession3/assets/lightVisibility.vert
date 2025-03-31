@@ -2,8 +2,6 @@
 
 layout (location = 0) in vec3 in_position;
 
-out vec3 normal;
-
 uniform mat4 camera_viewproj;
 uniform mat4 model;
 
