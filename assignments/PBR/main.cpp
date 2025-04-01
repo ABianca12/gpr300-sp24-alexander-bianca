@@ -44,6 +44,8 @@ struct Material
 	float sCoff = 0.5;
 	// Size of specular highlight
 	float shine = 125;
+	float metalic = 2.0;
+	float roughness = 1.0;
 } material;
 
 void resetCam(ew::Camera* camera, ew::CameraController* camControl)
@@ -79,6 +81,8 @@ void qwerty(ew::Shader shader, ew::Model model, GLuint texture, GLint normalMap,
 	shader.setFloat("material.dCoff", material.dCoff);
 	shader.setFloat("material.sCoff", material.sCoff);
 	shader.setFloat("material.shine", material.shine);
+	shader.setFloat("material.metalic", material.metalic);
+	shader.setFloat("material.roughness", material.roughness);
 	shader.setInt("_Maintex", 0);
 	shader.setInt("_NormalMap", 1);
 
@@ -140,11 +144,14 @@ void drawUI() {
 		resetCam(&camera, &camControl);
 	}
 
-	if (ImGui::CollapsingHeader("Material")) {
+	if (ImGui::CollapsingHeader("Material"))
+	{
 		ImGui::SliderFloat("Ambient", &material.aCoff, 0.0f, 1.0f);
 		ImGui::SliderFloat("Diffuse", &material.dCoff, 0.0f, 1.0f);
 		ImGui::SliderFloat("Specular", &material.sCoff, 0.0f, 1.0f);
-		ImGui::SliderFloat("Shine", &material.shine, 2.0f, 1024.0f);
+		ImGui::SliderFloat("Shine", &material.shine, 1.0f, 1024.0f);
+		ImGui::SliderFloat("metalic", &material.metalic, 1.0f, 100.0f);
+		ImGui::SliderFloat("roughness", &material.roughness, 1.0f, 100.0f);
 	}
 
 	ImGui::End();
