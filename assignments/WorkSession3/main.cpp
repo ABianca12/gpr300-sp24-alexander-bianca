@@ -38,6 +38,7 @@ ew::Transform suzanneTransform;
 
 #include <ew/procGen.h>
 ew::Mesh sphere;
+ew::Mesh plane;
 
 struct Framebuffer
 {
@@ -46,6 +47,7 @@ struct Framebuffer
 	GLuint depth;
 	GLuint position;
 	GLuint normal;
+	GLuint material;
 
 	void init()
 	{
@@ -83,9 +85,17 @@ struct Framebuffer
 		// Bind color1 attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, normal, 0);
 
+		glGenTextures(1, &material);
+		glBindTexture(GL_TEXTURE_2D, material);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, material, 0);
+
 		// Configure drawing to multiple buffers (albedo, position, normal, light)
-		GLuint arr[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-		glDrawBuffers(3, arr);
+		GLuint arr[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+		glDrawBuffers(4, arr);
 
 		// Create depth texture attachment
 		glGenTextures(1, &depth);
@@ -155,17 +165,16 @@ struct FullScreenQuad
 	GLuint vbo;
 } fullscreenQuad;
 
-static float quadVertices[] =
+static float quadVertecies[] =
 {
 	// pos (x, y) texcoord (u, v)
 	-1.0f,  1.0f, 0.0f, 1.0f,
 	-1.0f, -1.0f, 0.0f, 0.0f,
-		1.0f, -1.0f, 1.0f, 0.0f,
+	1.0f, -1.0f, 1.0f, 0.0f,
 
 	-1.0f,  1.0f, 0.0f, 1.0f,
-		1.0f, -1.0f, 1.0f, 0.0f,
-		1.0f,  1.0f, 1.0f, 1.0f,
-
+	1.0f, -1.0f, 1.0f, 0.0f,
+	1.0f,  1.0f, 1.0f, 1.0f,
 };
 
 struct Material
@@ -190,6 +199,22 @@ glm::vec3 lightPositions[100];
 glm::vec3 lightColors[100];
 float lightRadius = 4;
 
+void lightDataInit()
+{
+	srand(0);
+	for (int i = 0; i < 10; i++)
+	{
+		for (int j = 0; j < 10; j++)
+		{
+			glm::vec3 lightColor = glm::vec3(rand() % 2, rand() % 2, rand() % 2);
+			glm::vec3 lightPos = glm::vec3(i * 2.0f, 1.5, j * 2.0f);
+
+			lightPositions[i * 10 + j] = lightPos;
+			lightColors[i * 10 + j] = lightColor;
+		}
+	}
+}
+
 void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 {
 	camera->position = glm::vec3(0, 0, 5.0f);
@@ -197,7 +222,7 @@ void resetCam(ew::Camera* camera, ew::CameraController* camControl)
 	camControl->yaw = camControl->pitch = 0;
 }
 
-void RenderMonkey(ew::Shader litShader, GLuint texture, ew::Transform& suzanneTransform, ew::Model& model, float deltaTime)
+void RenderMonkey(ew::Shader geoShader, GLuint texture, ew::Transform& suzanneTransform, ew::Model& model, float deltaTime)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
@@ -213,15 +238,24 @@ void RenderMonkey(ew::Shader litShader, GLuint texture, ew::Transform& suzanneTr
 			{
 				suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
-				litShader.use();
-				litShader.setMat4("cameraViewproj", camera.projectionMatrix() * camera.viewMatrix());
-				litShader.setMat4("model", glm::translate(glm::vec3(i * 2.0f, 0, j * 2.0f)));
-				litShader.setInt("mainTex", 0);
+				geoShader.use();
+				geoShader.setFloat("material.ambientCoff", material.ambientCoff);
+				geoShader.setFloat("material.diffuseCoff", material.diffuseCoff);
+				geoShader.setFloat("material.specularCoff", material.specularCoff);
+				geoShader.setFloat("material.shine", material.shine);
+
+				geoShader.setMat4("cameraViewproj", camera.projectionMatrix() * camera.viewMatrix());
+				geoShader.setMat4("model", glm::translate(glm::vec3(i * 2.0f, 0, j * 2.0f)));
+				geoShader.setInt("mainTex", 0);
 
 				model.draw();
 			}
 		}
 	}
+
+	geoShader.setMat4("model", glm::translate(glm::vec3(0.0f, -5.0f, 0.0f)));
+
+	plane.draw();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -251,17 +285,20 @@ void RenderGeometry(ew::Shader geoShader)
 	glBindVertexArray(0);
 }
 
-void RenderLightVolumes(ew::Shader shaderPass)
+void RenderLightVolumes(ew::Shader lightVolume)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, lightFramebuffer.fbo);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glCullFace(GL_FRONT);
 	glDepthMask(GL_FALSE);
 
-	shaderPass.use();
-	shaderPass.setMat4("cameraViewproj", camera.projectionMatrix() * camera.viewMatrix());
+	lightVolume.use();
+	lightVolume.setMat4("cameraViewproj", camera.projectionMatrix() * camera.viewMatrix());
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, framebuffer.color);
@@ -272,24 +309,23 @@ void RenderLightVolumes(ew::Shader shaderPass)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, framebuffer.normal);
 
-	shaderPass.setInt("texturePos", 0);
-	shaderPass.setInt("textureNormal", 1);
-	shaderPass.setInt("textureAlbedo", 2);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.material);
 
-	shaderPass.setFloat("material.ambientCoff", material.ambientCoff);
-	shaderPass.setFloat("material.ambientCoff", material.diffuseCoff);
-	shaderPass.setFloat("material.ambientCoff", material.specularCoff);
-	shaderPass.setFloat("material.ambientCoff", material.shine);
+	lightVolume.setInt("texturePos", 0);
+	lightVolume.setInt("textureNormal", 1);
+	lightVolume.setInt("textureAlbedo", 2);
+	lightVolume.setInt("textureMaterial", 3);
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < maxLights; i++)
 	{
-		shaderPass.setVec3("camPos", camera.position);
+		lightVolume.setVec3("camPos", camera.position);
 
-		shaderPass.setVec3("light.color", lightColors[i]);
-		shaderPass.setVec3("light.pos", lightPositions[i]);
-		shaderPass.setFloat("light.r", lightRadius);
+		lightVolume.setVec3("light.color", lightColors[i]);
+		lightVolume.setVec3("light.pos", lightPositions[i]);
+		lightVolume.setFloat("light.radius", lightRadius);
 
-		shaderPass.setMat4("model", glm::translate(lightPositions[i]));
+		lightVolume.setMat4("model", glm::translate(lightPositions[i]));
 		sphere.draw();
 	}
 
@@ -300,14 +336,41 @@ void RenderLightVolumes(ew::Shader shaderPass)
 	glDepthMask(GL_TRUE);
 }
 
+void RenderShaderPass(ew::Shader shaderPass)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+
+	glBindVertexArray(fullscreenQuad.vao);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.color);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, lightFramebuffer.color);
+
+	shaderPass.use();
+
+	shaderPass.setInt("albedo", 0);
+	shaderPass.setInt("lighting", 1);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+}
+
 int main() {
 	GLFWwindow* window = initWindow("Work Session 3", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-	ew::Shader litShader = ew::Shader("assets/lit.vert", "assets/lit.frag");
+	//ew::Shader litShader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader geoShader = ew::Shader("assets/geometry.vert", "assets/geometry.frag");
-	ew::Shader shaderPassShader = ew::Shader("assets/shaderPass.vert", "assets/shaderPass.frag");
+	ew::Shader lightVolume = ew::Shader("assets/lightVolume.vert", "assets/lightVolume.frag");
+	ew::Shader shaderPass = ew::Shader("assets/shaderPass.vert", "assets/shaderPass.frag");
 	ew::Shader lightVisibilityShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
+	//ew::Shader planeShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -322,8 +385,10 @@ int main() {
 
 	framebuffer.init();
 	lightFramebuffer.init();
+	lightDataInit();
 
 	sphere.load(ew::createSphere(pointLight.radius, 10));
+	plane.load(ew::createPlane(100, 100, 100));
 
 	// Initalize fullscreen quad
 	glGenVertexArrays(1, &fullscreenQuad.vao);
@@ -334,7 +399,7 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, fullscreenQuad.vbo);
 
 	// buffer data to vbo
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertecies), &quadVertecies, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0); // positions
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
@@ -350,9 +415,6 @@ int main() {
 		deltaTime = time - prevFrameTime;
 		prevFrameTime = time;
 
-		glClearColor(0.0f,0.0f,0.0f,0.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 		camControl.move(window, &camera, deltaTime);
 
 		glEnable(GL_CULL_FACE);
@@ -364,11 +426,14 @@ int main() {
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		RenderMonkey(litShader, texture, suzanneTransform, suzanne, time);
+		RenderMonkey(geoShader, texture, suzanneTransform, suzanne, time);
 
-		RenderLightVolumes(shaderPassShader);
+		RenderLightVolumes(lightVolume);
 
-		RenderGeometry(geoShader);
+		RenderShaderPass(shaderPass);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
 
 		drawUI();
 
@@ -382,12 +447,24 @@ void drawUI() {
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui::NewFrame();
 
+	ImGui::Text("Color");
 	ImGui::Image((ImTextureID)(intptr_t)framebuffer.color, ImVec2(800, 600));
+	ImGui::Text("Normal");
 	ImGui::Image((ImTextureID)(intptr_t)framebuffer.normal, ImVec2(800, 600));
+	ImGui::Text("Position");
 	ImGui::Image((ImTextureID)(intptr_t)framebuffer.position, ImVec2(800, 600));
+	ImGui::Text("Material");
+	ImGui::Image((ImTextureID)(intptr_t)framebuffer.material, ImVec2(800, 600));
+	ImGui::Text("Lighting");
 	ImGui::Image((ImTextureID)(intptr_t)lightFramebuffer.color, ImVec2(800, 600));
 
 	ImGui::Begin("Settings");
+
+	ImGui::Text("Material Settings");
+	ImGui::SliderFloat("ambientCoff", &material.ambientCoff, 0.0, 1.0);
+	ImGui::SliderFloat("diffuseCoff", &material.diffuseCoff, 0.0, 1.0);
+	ImGui::SliderFloat("specularCoff", &material.specularCoff, 0.0, 1.0);
+	ImGui::SliderFloat("shine", &material.shine, 2.0, 1024.0);
 
 	if (ImGui::Button("Reset Camera"))
 	{
