@@ -1,6 +1,6 @@
 #version 450
 
-layout (location = 0) out vec4 fragColor0;
+layout (location = 0) out vec4 fragColor;
 
 uniform sampler2D texturePos;
 uniform sampler2D textureNormal;
@@ -25,13 +25,13 @@ uniform PointLight light;
 //	float shine;
 //};
 
-vec3 blinnPhong(vec3 normal, vec3 worldPos, vec3 lightDir, vec2 UV, vec4 matTexture)
+vec3 blinnPhong(vec3 lightDir, vec3 worldPos, vec3 normal, vec2 UV, vec4 matTexture)
 {
 	vec3 viewDir = normalize(camPos - worldPos);
 	vec3 halfDir = normalize(lightDir + viewDir);
 
-	float nDotL = max(dot(normal, lightDir), 0.0f);
-	float nDotH = max(dot(normal, halfDir), 0.0f);
+	float nDotL = max(dot(normal, lightDir), 0.0);
+	float nDotH = max(dot(normal, halfDir), 0.0);
 
 	vec3 diffuse = vec3(nDotL * matTexture.g);
 	vec3 specular = vec3(pow(nDotH, matTexture.a) * matTexture.b);
@@ -41,7 +41,7 @@ vec3 blinnPhong(vec3 normal, vec3 worldPos, vec3 lightDir, vec2 UV, vec4 matText
 
 float calculateAttentuation(float dist, float radius)
 {
-	float clampValue = clamp(1.0f - pow(dist / radius, 4.0f), 0.0f, 1.0f);
+	float clampValue = clamp(1.0 - pow(dist / radius, 4.0), 0.0, 1.0);
 	return clampValue * clampValue;
 }
 
@@ -58,8 +58,8 @@ void main()
 
 	float attentuation = calculateAttentuation(length(toLight), light.radius);
 
-	vec3 lighting = blinnPhong(normColor, posColor, toLightNorm, UV, matTexture) + albedo * matTexture.r;
+	vec3 lighting = blinnPhong(toLightNorm, posColor, normColor, UV, matTexture) + albedo * matTexture.r;
 
 	vec3 lightColor = lighting * attentuation;
-	fragColor0 = vec4(lightColor * albedo, 1.0f);
+	fragColor = vec4(lightColor * albedo, 1.0f);
 }

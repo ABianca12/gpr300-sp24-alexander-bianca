@@ -15,6 +15,8 @@ void drawUI();
 //Global state
 int screenWidth = 1080;
 int screenHeight = 720;
+int shadowScreenWidth = 800;
+int shadowScreenHeight = 600;
 float prevFrameTime;
 float deltaTime;
 
@@ -38,7 +40,10 @@ ew::Transform suzanneTransform;
 
 #include <ew/procGen.h>
 ew::Mesh sphere;
+ew::Mesh lightSphere;
 ew::Mesh plane;
+
+#include <cstdlib>
 
 struct Framebuffer
 {
@@ -51,38 +56,31 @@ struct Framebuffer
 
 	void init()
 	{
-		// Bind framebuffer
 		glGenFramebuffers(1, &fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-		// Create color0 texture attachment
 		glGenTextures(1, &color);
 		glBindTexture(GL_TEXTURE_2D, color);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		// Bind color0 attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
 
-		// Create color1 texture attachment
 		glGenTextures(1, &position);
 		glBindTexture(GL_TEXTURE_2D, position);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		// Bind color1 attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, position, 0);
 
-		// Create color1 texture attachment
 		glGenTextures(1, &normal);
 		glBindTexture(GL_TEXTURE_2D, normal);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		// Bind color1 attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, normal, 0);
 
 		glGenTextures(1, &material);
@@ -93,18 +91,15 @@ struct Framebuffer
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, material, 0);
 
-		// Configure drawing to multiple buffers (albedo, position, normal, light)
 		GLuint arr[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 		glDrawBuffers(4, arr);
 
-		// Create depth texture attachment
 		glGenTextures(1, &depth);
 		glBindTexture(GL_TEXTURE_2D, depth);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-		// Bind depth texture attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -125,31 +120,25 @@ struct LightFramebuffer
 
 	void init()
 	{
-		//Bind framebuffer
 		glGenFramebuffers(1, &fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-		//Create color0 texture attachment
 		glGenTextures(1, &color);
 		glBindTexture(GL_TEXTURE_2D, color);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		//Bind color0 attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
 
-		//Create depth texture attachment
 		glGenTextures(1, &depth);
 		glBindTexture(GL_TEXTURE_2D, depth);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-		//Bind depth texture attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 
-		//Check if frame buffer was created
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
 			printf("Failed to bind framebuffer");
@@ -158,6 +147,43 @@ struct LightFramebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 } lightFramebuffer;
+
+struct DepthBuffer
+{
+	GLuint fbo;
+	GLuint depth;
+
+	void init()
+	{
+		glGenFramebuffers(1, &fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+		glGenTextures(1, &depth);
+		glBindTexture(GL_TEXTURE_2D, depth);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+			shadowScreenWidth, shadowScreenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, depth);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("Failed to bind framebuffer");
+		}
+
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+} depthBuffer;
 
 struct FullScreenQuad
 {
@@ -179,24 +205,26 @@ static float quadVertecies[] =
 
 struct Material
 {
-	float ambientCoff = 0.5;
-	float diffuseCoff = 0.5;
-	float specularCoff = 0.5;
-	float shine = 128.0;
-} material;
+	float ambientCoff;
+	float diffuseCoff;
+	float specularCoff;
+	float shine;
+};
 
-struct PointLight
-{
-	glm::vec3 position;
-	float radius;
-	glm::vec4 color;
-} pointLight;
+Material defaultMaterial = { 0.5, 0.5, 0.5, 128 };
+
+//struct PointLight
+//{
+//	glm::vec3 position;
+//	float radius;
+//	glm::vec4 color;
+//} pointLight;
 
 const int maxLights = 128;
-PointLight pointLights[maxLights];
+//PointLight pointLights[maxLights];
 
-glm::vec3 lightPositions[100];
-glm::vec3 lightColors[100];
+glm::vec3 lightPositions[maxLights];
+glm::vec3 lightColors[maxLights];
 float lightRadius = 4;
 
 void LightDataInit()
@@ -232,7 +260,7 @@ void RenderLights(ew::Shader lightVisibility)
 	{
 		lightVisibility.setVec3("color", lightColors[i]);
 		lightVisibility.setMat4("model", glm::translate(lightPositions[i]));
-		sphere.draw();
+		lightSphere.draw();
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -255,17 +283,17 @@ void RenderMonkey(ew::Shader geoShader, GLuint texture, ew::Transform& suzanneTr
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < 10; i++)
 		{
-			for (int j = 0; j < 5; j++)
+			for (int j = 0; j < 10; j++)
 			{
 				suzanneTransform.rotation = glm::rotate(suzanneTransform.rotation, deltaTime, glm::vec3(0.0, 1.0, 0.0));
 
 				geoShader.use();
-				geoShader.setFloat("material.ambientCoff", material.ambientCoff);
-				geoShader.setFloat("material.diffuseCoff", material.diffuseCoff);
-				geoShader.setFloat("material.specularCoff", material.specularCoff);
-				geoShader.setFloat("material.shine", material.shine);
+				geoShader.setFloat("material.ambientCoff", defaultMaterial.ambientCoff);
+				geoShader.setFloat("material.diffuseCoff", defaultMaterial.diffuseCoff);
+				geoShader.setFloat("material.specularCoff", defaultMaterial.specularCoff);
+				geoShader.setFloat("material.shine", defaultMaterial.shine);
 
 				geoShader.setMat4("cameraViewproj", camera.projectionMatrix() * camera.viewMatrix());
 				geoShader.setMat4("model", glm::translate(glm::vec3(i * 2.0f, 0, j * 2.0f)));
@@ -309,6 +337,9 @@ void RenderLightVolumes(ew::Shader lightVolume)
 
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, framebuffer.material);
+
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.depth);
 
 	lightVolume.setInt("texturePos", 0);
 	lightVolume.setInt("textureNormal", 1);
@@ -354,21 +385,56 @@ void RenderShaderPass(ew::Shader shaderPass)
 
 	shaderPass.setInt("albedo", 0);
 	shaderPass.setInt("lighting", 1);
+	shaderPass.setInt("material", 2);
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
+}
+
+void RenderShadowMap()
+{
+	//Pipeline defenitions
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+	glCullFace(GL_BACK);
+	//glCullFace(GL_FRONT);  //This line causes shadow issues when suzzane is inside the plane
+
+	//Shadow pass
+	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.fbo); //Switches to depth buffer fbo for rendering shadows
+	{
+		//Begin pass by resizing window
+		glViewport(0, 0, shadowScreenWidth, shadowScreenHeight);
+
+		//GFX Pass
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		//for (int i = 0; i < 10; i++)
+		//{
+		//	for (int j = 0; j < 10; j++)
+		//	{
+		//		shadowMapShader.use();
+		//		shadowMapShader.setMat4("_Model", glm::translate(glm::vec3(i * 2.0f, 0, j * 2.0f)));
+		//		shadowMapShader.setMat4("_LightViewProj", shadowLightViewProj);
+
+		//		model.draw();
+		//	}
+		//}
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0); //Switches back to default framebuffer
+
+	glViewport(0, 0, screenWidth, screenHeight);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glCullFace(GL_BACK);
 }
 
 int main() {
 	GLFWwindow* window = initWindow("Work Session 3", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-	//ew::Shader litShader = ew::Shader("assets/lit.vert", "assets/lit.frag");
 	ew::Shader geoShader = ew::Shader("assets/geometry.vert", "assets/geometry.frag");
 	ew::Shader lightVolume = ew::Shader("assets/lightVolume.vert", "assets/lightVolume.frag");
 	ew::Shader shaderPass = ew::Shader("assets/shaderPass.vert", "assets/shaderPass.frag");
 	ew::Shader lightVisibility = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
-	//ew::Shader planeShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
 	// Initalize camera
@@ -384,8 +450,10 @@ int main() {
 	framebuffer.init();
 	lightFramebuffer.init();
 	LightDataInit();
+	depthBuffer.init();
 
-	sphere.load(ew::createSphere(pointLight.radius, 10));
+	sphere.load(ew::createSphere(10, 10));
+	lightSphere.load(ew::createSphere(0.5f, 4));
 	plane.load(ew::createPlane(100, 100, 100));
 
 	// Initalize fullscreen quad
@@ -417,6 +485,7 @@ int main() {
 
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
+		glCullFace(GL_BACK);
 
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
@@ -425,6 +494,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		RenderMonkey(geoShader, texture, suzanneTransform, suzanne, time);
+
+		RenderShadowMap();
 
 		RenderLightVolumes(lightVolume);
 
@@ -461,10 +532,10 @@ void drawUI() {
 	ImGui::Begin("Settings");
 
 	ImGui::Text("Material Settings");
-	ImGui::SliderFloat("ambientCoff", &material.ambientCoff, 0.0, 1.0);
-	ImGui::SliderFloat("diffuseCoff", &material.diffuseCoff, 0.0, 1.0);
-	ImGui::SliderFloat("specularCoff", &material.specularCoff, 0.0, 1.0);
-	ImGui::SliderFloat("shine", &material.shine, 2.0, 1024.0);
+	ImGui::SliderFloat("ambientCoff", &defaultMaterial.ambientCoff, 0.0, 1.0);
+	ImGui::SliderFloat("diffuseCoff", &defaultMaterial.diffuseCoff, 0.0, 1.0);
+	ImGui::SliderFloat("specularCoff", &defaultMaterial.specularCoff, 0.0, 1.0);
+	ImGui::SliderFloat("shine", &defaultMaterial.shine, 2.0, 1024.0);
 
 	if (ImGui::Button("Reset Camera"))
 	{
