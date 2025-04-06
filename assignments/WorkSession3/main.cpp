@@ -105,7 +105,7 @@ struct Framebuffer
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		// Bind depth texture attachment
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
@@ -125,31 +125,31 @@ struct LightFramebuffer
 
 	void init()
 	{
-		// Bind framebuffer
+		//Bind framebuffer
 		glGenFramebuffers(1, &fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-		// Create color0 texture attachment
+		//Create color0 texture attachment
 		glGenTextures(1, &color);
 		glBindTexture(GL_TEXTURE_2D, color);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		// Bind color0 attachment
+		//Bind color0 attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
 
-		// Create depth texture attachment
+		//Create depth texture attachment
 		glGenTextures(1, &depth);
 		glBindTexture(GL_TEXTURE_2D, depth);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-		// Bind depth texture attachment
+		//Bind depth texture attachment
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 
-		// Check if frame buffer was created
+		//Check if frame buffer was created
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
 			printf("Failed to bind framebuffer");
@@ -199,7 +199,7 @@ glm::vec3 lightPositions[100];
 glm::vec3 lightColors[100];
 float lightRadius = 4;
 
-void lightDataInit()
+void LightDataInit()
 {
 	srand(0);
 	for (int i = 0; i < 10; i++)
@@ -213,6 +213,29 @@ void lightDataInit()
 			lightColors[i * 10 + j] = lightColor;
 		}
 	}
+}
+
+void RenderLights(ew::Shader lightVisibility)
+{
+	glEnable(GL_DEPTH_TEST);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer.fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	lightVisibility.use();
+	lightVisibility.setMat4("cameraViewproj", camera.projectionMatrix() * camera.viewMatrix());
+
+	for (int i = 0; i < maxLights; i++)
+	{
+		lightVisibility.setVec3("color", lightColors[i]);
+		lightVisibility.setMat4("model", glm::translate(lightPositions[i]));
+		sphere.draw();
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void resetCam(ew::Camera* camera, ew::CameraController* camControl)
@@ -258,31 +281,6 @@ void RenderMonkey(ew::Shader geoShader, GLuint texture, ew::Transform& suzanneTr
 	plane.draw();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void RenderGeometry(ew::Shader geoShader)
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDisable(GL_DEPTH_TEST);
-
-	glBindVertexArray(fullscreenQuad.vao);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, framebuffer.color);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, lightFramebuffer.color);
-
-	geoShader.use();
-
-	geoShader.setInt("albedo", 0);
-	geoShader.setInt("lighting", 1);
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
 }
 
 void RenderLightVolumes(ew::Shader lightVolume)
@@ -369,7 +367,7 @@ int main() {
 	ew::Shader geoShader = ew::Shader("assets/geometry.vert", "assets/geometry.frag");
 	ew::Shader lightVolume = ew::Shader("assets/lightVolume.vert", "assets/lightVolume.frag");
 	ew::Shader shaderPass = ew::Shader("assets/shaderPass.vert", "assets/shaderPass.frag");
-	ew::Shader lightVisibilityShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
+	ew::Shader lightVisibility = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
 	//ew::Shader planeShader = ew::Shader("assets/lightVisibility.vert", "assets/lightVisibility.frag");
 	ew::Model suzanne = ew::Model("assets/suzanne.fbx");
 
@@ -385,7 +383,7 @@ int main() {
 
 	framebuffer.init();
 	lightFramebuffer.init();
-	lightDataInit();
+	LightDataInit();
 
 	sphere.load(ew::createSphere(pointLight.radius, 10));
 	plane.load(ew::createPlane(100, 100, 100));
@@ -431,6 +429,8 @@ int main() {
 		RenderLightVolumes(lightVolume);
 
 		RenderShaderPass(shaderPass);
+
+		RenderLights(lightVisibility);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
