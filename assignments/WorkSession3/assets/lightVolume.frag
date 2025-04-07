@@ -58,8 +58,8 @@ void main()
 
 	float attentuation = calculateAttentuation(length(toLight), light.radius);
 
-	vec3 lighting = blinnPhong(toLightNorm, posColor, normColor, UV, matTexture) + albedo * matTexture.r;
+	vec3 lighting = blinnPhong(toLightNorm, posColor, normColor, UV, matTexture) * attentuation * albedo + matTexture.r;
 
-	vec3 lightColor = lighting * attentuation;
-	fragColor = vec4(lightColor * albedo, 1.0f);
+	//vec3 lightColor = lighting * attentuation;
+	fragColor = vec4(lighting, 1.0f);
 }

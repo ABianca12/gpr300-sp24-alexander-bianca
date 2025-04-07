@@ -211,17 +211,9 @@ struct Material
 	float shine;
 };
 
-Material defaultMaterial = { 0.5, 0.5, 0.5, 128 };
+Material defaultMaterial = { 0.0, 0.5, 0.5, 128 };
 
-//struct PointLight
-//{
-//	glm::vec3 position;
-//	float radius;
-//	glm::vec4 color;
-//} pointLight;
-
-const int maxLights = 128;
-//PointLight pointLights[maxLights];
+const int maxLights = 100;
 
 glm::vec3 lightPositions[maxLights];
 glm::vec3 lightColors[maxLights];
@@ -341,9 +333,9 @@ void RenderLightVolumes(ew::Shader lightVolume)
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, depthBuffer.depth);
 
-	lightVolume.setInt("texturePos", 0);
-	lightVolume.setInt("textureNormal", 1);
-	lightVolume.setInt("textureAlbedo", 2);
+	lightVolume.setInt("texturePos", 1);
+	lightVolume.setInt("textureNormal", 2);
+	lightVolume.setInt("textureAlbedo", 0);
 	lightVolume.setInt("textureMaterial", 3);
 
 	for (int i = 0; i < maxLights; i++)
@@ -416,7 +408,7 @@ int main() {
 	LightDataInit();
 	depthBuffer.init();
 
-	sphere.load(ew::createSphere(6, 10));
+	sphere.load(ew::createSphere(lightRadius, 10));
 	lightSphere.load(ew::createSphere(0.5f, 4));
 	plane.load(ew::createPlane(100, 100, 100));
 
@@ -498,6 +490,9 @@ void drawUI() {
 	ImGui::SliderFloat("diffuseCoff", &defaultMaterial.diffuseCoff, 0.0, 1.0);
 	ImGui::SliderFloat("specularCoff", &defaultMaterial.specularCoff, 0.0, 1.0);
 	ImGui::SliderFloat("shine", &defaultMaterial.shine, 2.0, 1024.0);
+
+	ImGui::Text("Light Settings");
+	ImGui::SliderFloat("Light Radius", &lightRadius, 0.0, 10.0);
 
 	if (ImGui::Button("Reset Camera"))
 	{
