@@ -391,42 +391,6 @@ void RenderShaderPass(ew::Shader shaderPass)
 	glBindVertexArray(0);
 }
 
-void RenderShadowMap()
-{
-	//Pipeline defenitions
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
-	glCullFace(GL_BACK);
-	//glCullFace(GL_FRONT);  //This line causes shadow issues when suzzane is inside the plane
-
-	//Shadow pass
-	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.fbo); //Switches to depth buffer fbo for rendering shadows
-	{
-		//Begin pass by resizing window
-		glViewport(0, 0, shadowScreenWidth, shadowScreenHeight);
-
-		//GFX Pass
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		//for (int i = 0; i < 10; i++)
-		//{
-		//	for (int j = 0; j < 10; j++)
-		//	{
-		//		shadowMapShader.use();
-		//		shadowMapShader.setMat4("_Model", glm::translate(glm::vec3(i * 2.0f, 0, j * 2.0f)));
-		//		shadowMapShader.setMat4("_LightViewProj", shadowLightViewProj);
-
-		//		model.draw();
-		//	}
-		//}
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0); //Switches back to default framebuffer
-
-	glViewport(0, 0, screenWidth, screenHeight);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glCullFace(GL_BACK);
-}
-
 int main() {
 	GLFWwindow* window = initWindow("Work Session 3", screenWidth, screenHeight);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
@@ -452,7 +416,7 @@ int main() {
 	LightDataInit();
 	depthBuffer.init();
 
-	sphere.load(ew::createSphere(10, 10));
+	sphere.load(ew::createSphere(6, 10));
 	lightSphere.load(ew::createSphere(0.5f, 4));
 	plane.load(ew::createPlane(100, 100, 100));
 
@@ -494,8 +458,6 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		RenderMonkey(geoShader, texture, suzanneTransform, suzanne, time);
-
-		RenderShadowMap();
 
 		RenderLightVolumes(lightVolume);
 
